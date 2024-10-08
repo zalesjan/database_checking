@@ -1,0 +1,73 @@
+{
+    "expected_columns": {
+      "site_name": {
+        "alternatives": ["site_name", "sitename", "site-name", "location_name"],
+        "non_null": true
+      },
+      "wildcard_sub_id": {
+        "alternatives": ["wildcard_id", "wildcardsubid", "wildcard-sub-id", "sub_id_wildcard"],
+        "non_null": true
+      },
+      "lpi_id": {
+        "alternatives": ["lpi_id", "lpiid", "lpi-id", "lp_i_id", "lpid", "lpi_code"],
+        "non_null": true,
+        "is_numeric": true
+      },
+      "spi_id": {
+        "alternatives": ["spi_id", "spiid", "spi-id", "sp_i_id", "spid", "spi_code"],
+        "non_null": true,
+        "is_numeric": true
+      },
+      "circle_no": {
+        "alternatives": ["circle_no", "circleno", "circle-number", "circle_num", "circle_id", "circle_number"],
+        "is_numeric": true,
+        "range": [0, 120]
+      },
+      "circle_radius": {
+        "alternatives": ["circle_radius", "circleradius", "circle-radius", "radius_circle", "circle_r"],
+        "is_numeric": true,
+        "range": [0, 60]
+      },
+      "plot_sampled": {
+        "alternatives": ["plot_sampled", "plotsampled", "plot-sampled", "sampled_plot", "plot_sample"],
+        "is_true": true
+      },
+      "sampled_area": {
+        "alternatives": ["sampled_area", "sampledarea", "sampled-area", "area_sampled", "area_s"],
+        "is_numeric": true
+      },
+      "inventory_year": {
+        "alternatives": ["inventory_year", "inventoryyear", "inventory-year", "inv_year", "year_of_inventory"],
+        "non_null": true,
+        "is_numeric": true,
+        "range": [1900, "current_year"]
+      },
+      "consistent_id_standing": {
+        "alternatives": ["consistent_id_standing", "consistentid_standing", "consistent-id-standing", "standing_consistent_id", "standing_id"],
+        "allowed_values": ["Y", "N", "T", "F", "True", "False"],
+        "non_null": true
+      },
+      "consistent_id_lying": {
+        "alternatives": ["consistent_id_lying", "consistentid_lying", "consistent-id-lying", "lying_consistent_id", "lying_id"],
+        "allowed_values": ["Y", "N", "T", "F", "True", "False"],
+        "non_null": true
+      },
+      "geom": {
+        "alternatives": ["wkt_geom", "geom", "geometry", "geom_field", "geom_col", "shape_geometry"],
+        "non_null": true,
+        "specific_characters": "^[A-Za-z0-9]+$"
+      }
+    },
+    "required_non_null_columns": [
+      "site_id",
+      "site_name",
+      "wildcard_sub_id",
+      "lpi_id",
+      "spi_id",
+      "inventory_year",
+      "consistent_id_standing",
+      "consistent_id_lying",
+      "geom"
+    ]
+  }
+  

@@ -1,0 +1,113 @@
+{
+    "expected_columns": {
+      "site_id": {
+        "alternatives": ["site_id", "siteid", "site-id", "siteidentifier"],
+        "non_null": true
+      },
+      "lpi_id": {
+        "alternatives": ["lpi_id", "lpiid", "lpi-id", "lp_i_id"]
+      },
+      "spi_id": {
+        "alternatives": ["spi_id", "spiid", "spi-id", "sp_i_id"]
+      },
+      "tree_id": {
+        "alternatives": ["tree_id", "treeid", "tree-id", "treeidentifier"],
+        "non_null": true,
+        "is_numeric": true
+      },
+      "stem_id": {
+        "alternatives": ["stem_id", "stemid", "stem-id", "stemidentifier"],
+        "is_numeric": true
+      },
+      "piece_id": {
+        "alternatives": ["piece_id", "pieceid", "piece-id", "pieceidentifier"],
+        "is_numeric": true
+      },
+      "inventory_year": {
+        "alternatives": ["inventory_year", "inventoryyear", "inventory-year", "inv_year"],
+        "non_null": true,
+        "is_numeric": true,
+        "range": [1900, "current_year"]
+      },
+      "consistent_id": {
+        "alternatives": ["consistent_id", "consistentid", "consistent-id", "consistency_id"],
+        "non_null": true,
+        "is_boolean": true,
+        "allowed_values": ["Y", "N", "T", "F", "True", "False"]
+      },
+      "life": {
+        "alternatives": ["life", "lifetime", "life-span", "life_period"],
+        "non_null": true,
+        "allowed_values": ["D", "L"]
+      },
+      "position": {
+        "alternatives": ["position", "pos", "location", "site_position"],
+        "non_null": true,
+        "allowed_values": ["S", "L"]
+      },
+      "integrity": {
+        "alternatives": ["integrity", "integrity_score", "integrity_status", "integrity_level"],
+        "non_null": true,
+        "allowed_values": ["F", "I"]
+      },
+      "date": {
+        "alternatives": ["date", "record_date", "observation_date", "entry_date"],
+        "non_null": true,
+        "is_date": true
+      },
+      "species_code": {
+        "alternatives": ["species_code", "speciesid", "species-code", "speciesidentifier"],
+        "specific_characters": "^.{6}$"
+      },
+      "full_scientific": {
+        "alternatives": ["full_scientific", "tree_species"]
+      },
+      "diameter_1": {
+        "alternatives": ["diameter_1", "d_1", "d1_mm"],
+        "is_numeric": true,
+        "range": [0, 3000]
+      },
+      "diameter_2": {
+        "alternatives": ["diameter_2", "d_2", "d2_mm"],
+        "is_numeric": true,
+        "range": [0, 3000]
+      },
+      "length": {
+        "alternatives": ["length", "length_mm"],
+        "non_null": true,
+        "is_numeric": true,
+        "range": [0, 50000]
+      },
+      "decay": {
+        "alternatives": ["decay"],
+        "allowed_values": ["F", "P"]
+      },
+      "geom": {
+        "alternatives": ["geom", "geometry", "boundaries", "geom_field"],
+        "non_null": true
+      },
+      "institute": {
+          "alternatives": ["institute", "institute_name", "inst"],
+          "non_null": true
+      },
+      "wildcard_id": {
+          "alternatives": ["wildcard_sub_id", "wildcard_id", "sub_id"],
+          "non_null": true
+      }
+    },
+    "required_non_null_columns": [
+      "site_id",
+      "tree_id",
+      "inventory_year",
+      "consistent_id",
+      "life",
+      "position",
+      "integrity",
+      "full_scientific",
+      "length",
+      "geom",
+      "institute",
+      "wildcard_id"
+    ]
+  }
+  

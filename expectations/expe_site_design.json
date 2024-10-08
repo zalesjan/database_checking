@@ -1,0 +1,129 @@
+{
+    "expected_columns": {
+      "site_id": {
+        "alternatives": ["site_id", "siteid", "site-id", "site_id"],
+        "non_null": true
+      },
+      "site_name": {
+        "alternatives": ["site_name", "sitename", "site-name", "site_name"],
+        "non_null": true
+      },
+      "institute": {
+        "alternatives": ["institute", "institution", "institute_name", "institute"]
+      },
+      "wildcard_sub_id": {
+        "alternatives": ["wildcard_sub_id", "wildcardsubid", "wildcard-sub-id", "wildcard_sub_id"],
+        "non_null": true
+      },
+      "inventory_year": {
+        "alternatives": ["inventory_year", "inventoryyear", "inventory-year", "inv_year"],
+        "non_null": true,
+        "is_numeric": true,
+        "range": [1900, "current_year"]
+      },
+      "inventory_type": {
+        "alternatives": ["inventory_type", "inventorytype", "inventory-type", "inv_type"],
+        "allowed_values": ["SPI", "LPI", "C", "D", "E"]
+      },
+      "no_plots": {
+        "alternatives": ["no_plots", "noplots", "no-plots", "number_of_plots"],
+        "is_numeric": true
+      },
+      "circle_no": {
+        "alternatives": ["circle_no", "circleno", "circle-number", "circle_num"],
+        "non_null": true,
+        "is_numeric": true,
+        "range": [1, 100]
+      },
+      "circle_radius": {
+        "alternatives": ["circle_radius", "circleradius", "circle-radius", "radius_circle"],
+        "is_numeric": true,
+        "range": [0.0, 100.0]
+      },
+      "circle_azimuth": {
+        "alternatives": ["circle_azimuth", "circleazimuth", "circle-azimuth", "azimuth_circle"],
+        "is_numeric": true,
+        "range": [0, 360]
+      },
+      "circle_distance": {
+        "alternatives": ["circle_distance", "circledistance", "circle-distance", "distance_circle"],
+        "is_numeric": true,
+        "range": [0.0, 1000.0]
+      },
+      "pom_mark": {
+        "alternatives": ["pom_mark", "pommark", "pom-mark"],
+        "is_boolean": true,
+        "allowed_values": ["Y", "N", "T", "F", "True", "False"]
+      },
+      "standing_alive_threshold": {
+        "alternatives": ["standing_alive_threshold", "standingalivethreshold", "standing-alive-threshold"],
+        "is_numeric": true,
+        "range": [0, 20]
+      },
+      "standing_dead_threshold": {
+        "alternatives": ["standing_dead_threshold", "standingdeadthreshold", "standing-dead-threshold"],
+        "is_numeric": true,
+        "range": [0, 25]
+      },
+      "lying_alive_threshold": {
+        "alternatives": ["lying_alive_threshold", "lyingalivethreshold", "lying-alive-threshold"],
+        "is_numeric": true,
+        "range": [0, 50]
+      },
+      "lying_dead_threshold": {
+        "alternatives": ["lying_dead_threshold", "lyingdeadthreshold", "lying-dead-threshold"],
+        "is_numeric": true,
+        "range": [0, 50]
+      },
+      "species_pool": {
+        "alternatives": ["species_pool", "speciespool", "species-pool"],
+        "allowed_values": ["A", "B", "C", "D", "E"]
+      },
+      "lis_cwd": {
+        "alternatives": ["lis_cwd", "liscwd", "lis-cwd"],
+        "is_boolean": true
+      },
+      "geom": {
+        "alternatives": ["geom", "geometry", "wkt_geom", "geom_field", "geom_col"],
+        "non_null": true
+      },
+      "stem_coord_ref_point": {
+        "alternatives": ["stem_coord_ref_point", "stemcoordrefpoint", "stem-coord-ref-point"],
+        "allowed_values": ["A", "B", "C", "D"]
+      },
+      "epsg_code": {
+        "alternatives": ["epsg_code", "epsgcode", "epsg-code"],
+        "is_numeric": true,
+        "allowed_values": [4326, 3857, 32633, 27700]
+      },
+      "forest_type": {
+        "alternatives": ["forest_type", "foresttype", "forest-type"],
+        "allowed_values": ["Boreal", "Temperate", "Tropical", "Subtropical"]
+      },
+      "year_abandoment": {
+        "alternatives": ["year_abandoment", "yearabandoment", "year-abandoment"],
+        "is_numeric": true,
+        "range": [1800, "current_year"]
+      },
+      "his": {
+        "alternatives": ["his", "historical_indicator", "historical", "historical_indicator_status"],
+        "is_boolean": true
+      },
+      "soil_class": {
+        "alternatives": ["soil_class", "soilclass", "soil-class"],
+        "allowed_values": ["Sandy", "Clay", "Loam", "Silt"]
+      },
+      "other": {
+        "alternatives": ["other", "miscellaneous", "additional_info", "other_data"]
+      }
+    },
+    "required_non_null_columns": [
+      "site_id",
+      "site_name",
+      "wildcard_sub_id",
+      "inventory_year",
+      "circle_no",
+      "geom"
+    ]
+  }
+  

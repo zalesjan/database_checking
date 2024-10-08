@@ -1,0 +1,2 @@
+site_id	site_name	wildcard_sub_id	lpi_id	spi_id	circle_no	circle_radius	plot_sampled	sampled_area	inventory_year	consistent_id_standign	consistent_id_lying	other	geom	slope	topo	expo	elev_center	elev_range
+03-002	Franzhorn	a	1	\N	\N	\N	Y	10000	1975	\N	\N	\N	POINT (4254138.09592784 3368877.48831399)	1.9	level	S	69	\N
