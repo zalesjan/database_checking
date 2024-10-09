@@ -9,14 +9,7 @@ import logging
 from modules.logs import write_and_log
 
 def validate_file(df, config, file_name):
-
-    logging.basicConfig(
-        filename='validation_logs.log',  # Specify your log file name
-        level=logging.INFO,  # Set the logging level to INFO or WARNING
-        format='%(asctime)s - %(levelname)s - %(message)s',  # Define the format of log messages
-    )
-    logging.info('Validation logging setup is complete.')
-
+    write_and_log(f'validating file: {file_name}')
     expected_columns = config.get("expected_columns", {})
     validation_results = {}
     existence_checks = {}
@@ -165,109 +158,6 @@ def value_counts_for_each_distinct_value(df):
         for value, count in values.items():
             write_and_log(f" - {value}: {count}")
 
-def check_tree_integrity(df):
-    """
-    This function checks for unusual changes in tree attributes over time in the 'tree' table.
-    
-    Parameters:
-    df (pd.DataFrame): DataFrame containing tree data with columns 'tree_id', 'inventory_year', 'dbh', 'position', 'life', 'geometry_x', 'geometry_y'.
-    
-    Returns:
-    dict: A dictionary containing the results of each integrity test with their respective issues.
-    """
-    integrity_issues = {
-        "dbh_reduction": [],
-        "position_reversal": [],
-        "life_status_reversal": [],
-        "geometry_shift": [],
-        "missing_in_census": []
-    }
-
-    # Ensure the data is sorted by 'tree_id' and 'inventory_year'
-    df = df.sort_values(by=['tree_id', 'inventory_year'])
-
-    # Group the data by 'tree_id' to perform tree-specific checks over time
-    grouped = df.groupby('tree_id')
-
-    for tree_id, group in grouped:
-        # Check 1: DBH should not reduce by more than 2.5 cm or 10% of the previous measurement
-        previous_dbh = None
-        for index, row in group.iterrows():
-            current_dbh = row['dbh']
-            if previous_dbh is not None and current_dbh < previous_dbh - max(2.5, 0.1 * previous_dbh):
-                integrity_issues['dbh_reduction'].append({
-                    "tree_id": tree_id,
-                    "previous_dbh": previous_dbh,
-                    "current_dbh": current_dbh,
-                    "inventory_year": row['inventory_year']
-                })
-            previous_dbh = current_dbh
-
-        # Check 2: Position can only change from 'S' to 'L' or stay the same
-        if not group['position'].isin(['S', 'L']).all():
-            continue  # Skip invalid position values
-        if not group['position'].is_monotonic_decreasing:
-            for idx in range(1, len(group)):
-                prev_pos = group['position'].iloc[idx - 1]
-                curr_pos = group['position'].iloc[idx]
-                if prev_pos == 'L' and curr_pos == 'S':  # Detecting L -> S transition
-                    integrity_issues['position_reversal'].append({
-                        "tree_id": tree_id,
-                        "previous_position": prev_pos,
-                        "current_position": curr_pos,
-                        "inventory_year": group['inventory_year'].iloc[idx]
-                    })
-
-        # Check 3: Life status can only change from 'A' to 'D' or stay the same
-        if not group['life'].isin(['A', 'D']).all():
-            continue  # Skip invalid life values
-        if not group['life'].is_monotonic_decreasing:
-            for idx in range(1, len(group)):
-                prev_life = group['life'].iloc[idx - 1]
-                curr_life = group['life'].iloc[idx]
-                if prev_life == 'D' and curr_life == 'A':  # Detecting D -> A transition
-                    integrity_issues['life_status_reversal'].append({
-                        "tree_id": tree_id,
-                        "previous_life": prev_life,
-                        "current_life": curr_life,
-                        "inventory_year": group['inventory_year'].iloc[idx]
-                    })
-
-        # Check 4: Geometry shifts (both x and y coordinates) should not exceed 1 meter tolerance
-        #previous_geometry = None
-        #for index, row in group.iterrows():
-        #    current_geometry = (row['geometry_x'], row['geometry_y'])
-        #    if previous_geometry is not None:
-        #        distance = ((current_geometry[0] - previous_geometry[0]) ** 2 + 
-        #                    (current_geometry[1] - previous_geometry[1]) ** 2) ** 0.5
-        #        if distance > 1.0:  # Tolerance of +/- 1 meter
-        #            integrity_issues['geometry_shift'].append({
-        #                "tree_id": tree_id,
-        #                "previous_geometry": previous_geometry,
-        #                "current_geometry": current_geometry,
-        #                "inventory_year": row['inventory_year'],
-        #                "distance": round(distance, 2)
-        #            })
-        #    previous_geometry = current_geometry
-
-        # Check 5: Missing in consecutive censuses (only for plots with 3+ censuses)
-        years = group['inventory_year'].tolist()
-        if len(years) >= 3:  # Check only for plots with 3 or more censuses
-            for i in range(1, len(years)):
-                if years[i] != years[i - 1] + 1:  # If the year gap is greater than 1
-                    integrity_issues['missing_in_census'].append({
-                        "tree_id": tree_id,
-                        "previous_year": years[i - 1],
-                        "missing_year": years[i - 1] + 1,
-                        "current_year": years[i]
-                    })
-
-    return integrity_issues
-
-import pandas as pd
-
-import pandas as pd
-
 def check_tree_integrity_optimized(df):
     """
     Optimized function to check for unusual changes in tree attributes over time in the 'tree' table.
@@ -334,8 +224,8 @@ def check_tree_integrity_optimized(df):
 
     # Drop the temporary columns used for calculation
     df.drop(columns=['previous_dbh', 'previous_position', 'previous_life', 'previous_integrity'], inplace=True)
-    
-    # Check for empty lists or DataFrames and return only the non-empty ones
-    return {test: issues.to_dict('records') if isinstance(issues, pd.DataFrame) and not issues.empty else issues
-        for test, issues in integrity_issues.items() if (isinstance(issues, pd.DataFrame) and not issues.empty) or (isinstance(issues, list) and len(issues) > 0)}
 
+    # Convert DataFrames to lists of dictionaries if necessary and return non-empty results
+    return {test: issues.to_dict('records') if isinstance(issues, pd.DataFrame) and not issues.empty else issues
+            for test, issues in integrity_issues.items()
+            if (isinstance(issues, pd.DataFrame) and not issues.empty) or (isinstance(issues, list) and len(issues) > 0)}
