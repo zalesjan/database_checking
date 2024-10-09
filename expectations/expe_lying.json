@@ -38,7 +38,7 @@
       "life": {
         "alternatives": ["life", "lifetime", "life-span", "life_period"],
         "non_null": true,
-        "allowed_values": ["D", "L"]
+        "allowed_values": ["D", "A"]
       },
       "position": {
         "alternatives": ["position", "pos", "location", "site_position"],

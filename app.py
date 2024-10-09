@@ -4,7 +4,7 @@ import json
 import os
 import re
 from datetime import datetime
-from modules.validate_files_module import value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column
+from modules.validate_files_module import check_tree_integrity_optimized, check_tree_integrity, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column
 from modules.database_utils import composed_site_id_tree, get_db_connection, load_data_with_copy_command, move_data_to_tree, update_unique_plot_id
 from modules.dataframe_actions import determine_configs
 from modules.logs import write_and_log
@@ -55,16 +55,16 @@ if uploaded_file:
 
     # VALIDATION
     # Button to run validation
-    if st.button("Run Validation"):
+    if st.button("CHECK PRESENCE OF KEY COLUMNS AND DATA FORMAT RESTRICTIONS"):
         write_and_log(f'validating file: {uploaded_file}')
         validation_results = validate_file(df, config, uploaded_file.name)
         
     # Dropdown menu to select a validation function to run
-    function_choice = st.selectbox("Select a validation to run on the uploaded file:",
+    function_choice = st.selectbox("EXPLORE DATA IN THE UPLOADED FILE",
         ("Show ASCENDING Distinct Values in Each Column", "Show Distinct Values in Each Column with their Counts", 
         "Show Count of Unique Values in Each Column", "Show Counts for all Distinct Values for Each Column"))
 
-    if st.button("Run Selected Function"):
+    if st.button("Run"):
         write_and_log(f'Running function: {function_choice} on file: {uploaded_file}')
         if function_choice == "Show ASCENDING Distinct Values in Each Column":
             distinct_asc_values_each_column(df)
@@ -74,7 +74,10 @@ if uploaded_file:
             distinct_value_counts(df)
         elif function_choice == "Show Counts for all Distinct Values for Each Column":
             value_counts_for_each_distinct_value(df)
-
+    
+    if st.button("CHECK DATA FOR INTEGRITY"):
+        integrity_issues = check_tree_integrity_optimized(df)
+        write_and_log(f'Running Integrity issues: {integrity_issues}')
     #DATABASE UPLOADS
     # Button to copy data to the database
     if st.button("Copy Data to Database"):
@@ -83,10 +86,10 @@ if uploaded_file:
         write_and_log("Data successfully copied to the database.")
 
 # Dropdown menu to select a validation function to run
-helper_operation = st.selectbox("Select a help operation to run:",
+helper_operation = st.selectbox("CHOSE A HELPER OPERATION",
 ("Move Data to Tree Table", "Update unique_plot_id in tree_staging", "Update composed_site_id in tree table"))
 
-if st.button("Run Selected Helper Operation"):
+if st.button("Run that helper operation"):
     write_and_log(f'Running function: {helper_operation}')
     if helper_operation == "Move Data to Tree Table":
         move_data_to_tree()
@@ -97,5 +100,3 @@ if st.button("Run Selected Helper Operation"):
     elif helper_operation == "Update composed_site_id in tree table":
         composed_site_id_tree()
         write_and_log("composed_site_id in tree successfully updated")
-
-    
