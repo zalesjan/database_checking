@@ -236,7 +236,7 @@ def check_tree_integrity_optimized(df):
 
 
 
-def check_dbh_reduction(df)
+"""def check_dbh_reduction(df)
     # Check 1: DBH reduction by more than 2.5 cm or 10%
     jenom alive 
     df['previous_dbh'] = grouped['dbh'].shift(1)
@@ -282,4 +282,4 @@ def check_dbh_reduction(df)
     return {test: issues.to_dict('records') if isinstance(issues, pd.DataFrame) and not issues.empty else issues
             for test, issues in integrity_issues.items()
             if (isinstance(issues, pd.DataFrame) and not issues.empty) or (isinstance(issues, list) and len(issues) > 0)}
-    
+    """

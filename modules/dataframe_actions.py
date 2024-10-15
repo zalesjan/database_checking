@@ -62,7 +62,7 @@ def determine_configs(file_path, df_columns):
         "lying": ("tree_staging", "expectations/expe_lying.json"),
         "standing": ("tree_staging", "expectations/expe_standing.json"),
         "design": ("site_design", "expectations/expe_site_design.json"),
-        "plots": ("plots", "expectations/expe_plots.json")
+        "plots": ("plots", "expectations/expe_plots.json"),
         "sites": ("sites", "expectations/expe_sites.json")
     }
     
