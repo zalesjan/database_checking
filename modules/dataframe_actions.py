@@ -62,7 +62,8 @@ def determine_configs(file_path, df_columns):
         "lying": ("tree_staging", "expectations/expe_lying.json"),
         "standing": ("tree_staging", "expectations/expe_standing.json"),
         "design": ("site_design", "expectations/expe_site_design.json"),
-        "plots": ("plot", "expectations/expe_plots.json")
+        "plots": ("plots", "expectations/expe_plots.json")
+        "sites": ("sites", "expectations/expe_sites.json")
     }
     
     base_filename = os.path.basename(file_path).lower()
@@ -100,3 +101,16 @@ def determine_configs(file_path, df_columns):
 
     # If no match is found in the table mapping
     raise ValueError("File name does not match any known configuration")
+
+def dataframe_for_tree_integrity(df):
+    # Select the columns needed for the integrity checks
+    columns_to_check = ['tree_id', 'wildcard_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific']
+    df_for_integrity_checks = df[columns_to_check]
+
+    # Step 1: Sort the data to ensure correct chronological order
+    df_integrity = df_for_integrity_checks.sort_values(by=['tree_id', 'inventory_year'])
+
+    # Step 2: Use groupby and vectorized operations for each test
+    grouped = df.groupby('tree_id')
+
+    return grouped

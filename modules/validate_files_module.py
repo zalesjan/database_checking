@@ -229,3 +229,57 @@ def check_tree_integrity_optimized(df):
     return {test: issues.to_dict('records') if isinstance(issues, pd.DataFrame) and not issues.empty else issues
             for test, issues in integrity_issues.items()
             if (isinstance(issues, pd.DataFrame) and not issues.empty) or (isinstance(issues, list) and len(issues) > 0)}
+
+
+
+
+
+
+
+def check_dbh_reduction(df)
+    # Check 1: DBH reduction by more than 2.5 cm or 10%
+    jenom alive 
+    df['previous_dbh'] = grouped['dbh'].shift(1)
+    dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
+    integrity_issues['dbh_reduction'] = df[dbh_criteria & df['previous_dbh'].notna()]
+def check_dbh_reduction(df)
+    # Check 2: Position changes from L to S
+    df['previous_position'] = grouped['position'].shift(1)
+    position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
+    integrity_issues['position_reversal'] = df[position_criteria]
+def check_dbh_reduction(df)
+    # Check 3: Life status changes from D to A
+    df['previous_life'] = grouped['life'].shift(1)
+    life_criteria = (df['previous_life'] == 'D') & (df['life'] == 'A')
+    integrity_issues['life_status_reversal'] = df[life_criteria]
+def check_dbh_reduction(df)
+    # Check 4: Geometry shifts more than 1 meter
+    #df['previous_geometry_x'] = grouped['geometry_x'].shift(1)
+    #df['previous_geometry_y'] = grouped['geometry_y'].shift(1)
+    #geometry_criteria = ((df['geometry_x'] - df['previous_geometry_x']).pow(2) +
+    #                     (df['geometry_y'] - df['previous_geometry_y']).pow(2)).pow(0.5) > 1
+    #integrity_issues['geometry_shift'] = df[geometry_criteria & df['previous_geometry_x'].notna()]
+def check_dbh_reduction(df)
+    # Check 5: Missing consecutive censuses for trees with 3 or more census years
+    #years_count = grouped['inventory_year'].transform('count')
+    #df['previous_year'] = grouped['inventory_year'].shift(1)
+    #census_gap = (df['inventory_year'] - df['previous_year']) > 1
+    #integrity_issues['missing_in_census'] = df[census_gap & (years_count >= 3)]
+def check_dbh_reduction(df)
+    # Check 6: Species changes between inventory years
+    species_change = grouped['full_scientific'].transform('nunique') > 1
+    integrity_issues['species_change'] = df[species_change]
+def check_dbh_reduction(df)
+    # Check 7: Integrity changes from F to I
+    df['previous_integrity'] = grouped['integrity'].shift(1)
+    integrity_criteria = (df['previous_integrity'] == 'F') & (df['integrity'] == 'I')
+    integrity_issues['integrity_reversal'] = df[integrity_criteria]
+
+    # Drop the temporary columns used for calculation
+    df.drop(columns=['previous_dbh', 'previous_position', 'previous_life', 'previous_integrity'], inplace=True)
+
+    # Convert DataFrames to lists of dictionaries if necessary and return non-empty results
+    return {test: issues.to_dict('records') if isinstance(issues, pd.DataFrame) and not issues.empty else issues
+            for test, issues in integrity_issues.items()
+            if (isinstance(issues, pd.DataFrame) and not issues.empty) or (isinstance(issues, list) and len(issues) > 0)}
+    

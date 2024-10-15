@@ -7,20 +7,6 @@ from datetime import datetime
 import json
 from modules.logs import write_and_log
 from modules.dataframe_actions import prepare_dataframe_for_copy, determine_copy_command
-    
-# Hardcoded PostgreSQL database connection details
-#DB_HOST = '147.251.253.245'
-#DB_PORT = '5432'
-#DB_NAME = 'EuFoRIa_trees_db'
-#DB_USER = 'vukoz'
-#DB_PASSWORD = 'W0Ja3l9WbabOxWatduegk6akPTJg9kZi6JxaKuWIjncX7AK0ct2vYaL9kDExoVjH'
-
-DB_HOST = '147.251.253.245'
-DB_PORT = '5432'
-DB_NAME = 'trees_db'
-DB_USER = 'postgres'
-DB_PASSWORD = 'eKRG7uA1Wb56yYDOdbRua9kFrQBDVevXckoYQA3YGcL8dbAEF8nu53gXMqOoZXlI'
-
 
 # Set up logging
 log_folder = 'logs'
@@ -33,14 +19,24 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
 )
 
+def site_password():
+    PASSWORD = st.secrets["general"]["site_password"]
+    user_password = st.text_input("Enter password (Jara narozeniny)", type="password")    
+    # Check if the password entered by the user is correct
+    if user_password == PASSWORD:
+        st.success("Password is correct. You can now proceed.")
+        return True
+    else:
+        st.warning("Please enter the correct password to proceed.")
+
 def get_db_connection():
     try:
         conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            dbname=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD
+            host=st.secrets["postgres"]["DB_HOST"],
+            port=st.secrets["postgres"]["DB_PORT"],
+            dbname=st.secrets["postgres"]["DB_NAME"],
+            user=st.secrets["postgres"]["DB_USER"],
+            password=st.secrets["postgres"]["DB_PASSWORD"]
         )
         print("Connection to the database was successful!")
         return conn

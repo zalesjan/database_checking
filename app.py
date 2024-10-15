@@ -6,7 +6,7 @@ import re
 from datetime import datetime
 from modules.validate_files_module import check_tree_integrity_optimized, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column
 from modules.database_utils import composed_site_id_tree, get_db_connection, load_data_with_copy_command, move_data_to_tree, update_unique_plot_id
-from modules.dataframe_actions import determine_configs
+from modules.dataframe_actions import determine_configs, dataframe_for_tree_integrity
 from modules.logs import write_and_log
 import logging
     
@@ -58,7 +58,7 @@ if uploaded_file:
     if st.button("CHECK PRESENCE OF KEY COLUMNS AND DATA FORMAT RESTRICTIONS"):
         validation_results = validate_file(df, config, uploaded_file.name)
 
-    # Data (rnage) validation
+    # Data (range) validation
     explore_functions = {
         "Show ASCENDING Distinct Values in Each Column": distinct_asc_values_each_column,
         "Show Distinct Values in Each Column with their Counts": distinct_values_with_counts,
@@ -71,12 +71,73 @@ if uploaded_file:
     if st.button("Run"):
         write_and_log(f'Running function: {function_choice} on file: {uploaded_file.name}')
         explore_functions[function_choice](df)  # Call the selected function
+        
+    # CHECK DATA FOR INTEGRITY
+    grouped = dataframe_for_tree_integrity(df)
+
+    # Initialize Streamlit session state to keep track of which tests have been run
+    if 'current_test' not in st.session_state:
+        st.session_state.current_test = 0  # This will control which test to run
+    if 'integrity_issues' not in st.session_state:
+        st.session_state.integrity_issues = {}  # Store results for each test
+
+    # Select the columns needed for the integrity checks
+    columns_to_check = ['tree_id', 'wildcard_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific']
+    df_for_integrity_checks = df[columns_to_check]
+
+    # List of tests and corresponding functions
+    test_functions = {
+        "dbh_reduction": check_dbh_reduction,
+        "position_reversal": check_position_change,
+        "species_change": check_species_change,
+        "life_status_reversal": check_life_status_change,
+        "geometry_shift": check_geometry_shift,  
+        "missing_in_census": check_missing_census,
+        "integrity_reversal": check_integrity_change
+    }
+
+    # List of test names (same order as above)
+    test_names = list(test_functions.keys())
+
+    # Display a sequential button for each test
+    if st.session_state.current_test < len(test_names):
+        current_test_name = test_names[st.session_state.current_test]
+        if st.button(f"Run {current_test_name} test"):
+            # Run the corresponding test function
+            test_function = test_functions[current_test_name]
+            result = test_function(grouped)
+
+            # Store the result in the session state
+            st.session_state.integrity_issues[current_test_name] = result
+
+            # Display the result
+            st.write(f"Results for {current_test_name} test:")
+            st.dataframe(result)  # Display the resulting dataframe
+
+            # Increment the current test index to show the next test button
+            st.session_state.current_test += 1
+
+    # Display final results once all tests are run
+    if st.session_state.current_test >= len(test_names):
+        st.write("All tests completed. Here are the results for each test:")
+        for test, result in st.session_state.integrity_issues.items():
+            st.write(f"### {test.capitalize()} Test Results:")
+            st.dataframe(result)
+
+    # Optional button to reset the tests
+    if st.button("Reset Tests"):
+        st.session_state.current_test = 0
+        st.session_state.integrity_issues = {}
+        st.write("All tests have been reset.")
     
+    # CHECK DATA FOR INTEGRITY
     if st.button("CHECK DATA FOR INTEGRITY"):
         integrity_issues = check_tree_integrity_optimized(df)
         write_and_log(f'Running Integrity issues: {integrity_issues}')
     
     #DATABASE UPLOADS
+
+    musi tam prijit heslo
     # Button to copy data to the database
     if st.button("Copy Data to Database"):
         write_and_log(f'attempting to upload: {uploaded_file}')
