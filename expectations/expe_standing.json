@@ -52,7 +52,7 @@
             "allowed_values": ["F", "I"]
         },
         "height": {
-            "alternatives": ["height_m"],
+            "alternatives": ["height_m", "height"],
             "non_null": true,
             "is_numeric": true,
             "range": [0, 100]
@@ -70,7 +70,7 @@
             "alternatives": ["full_scientific", "tree_species"]
         },
         "dbh": {
-            "alternatives": ["dbh_cm", "dbh_m", "dbh_mm"],
+            "alternatives": ["dbh", "dbh_cm", "dbh_m", "dbh_mm"],
             "non_null": true,
             "is_numeric": true,
             "range": [0, 300]
