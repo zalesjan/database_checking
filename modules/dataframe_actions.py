@@ -41,12 +41,15 @@ def determine_copy_command(file_path, df_columns, extra_columns, table_name):
     Returns:
         copy_command (str): The COPY command for inserting data.
         core_attributes (list): List of core columns for the table.
-    """
+    :"""
     # Map the DataFrame columns to core attributes based on expectations
     core_attributes = [col for col in df_columns if col not in extra_columns]
     
-    # Join core columns into a comma-separated string
-    columns_string = ", ".join(core_attributes + ["extended_attributes"])
+    if extra_columns:
+        # Join core columns into a comma-separated string
+        columns_string = ", ".join(core_attributes + ["extended_attributes"])
+    else:
+        columns_string = ", ".join(core_attributes)
 
     # Create the COPY command to include core columns and JSONB `extended_attributes`
     copy_command = f"""
@@ -103,10 +106,6 @@ def determine_configs(file_path, df_columns):
     raise ValueError("File name does not match any known configuration")
 
 def dataframe_for_tree_integrity(df):
-    # Replace '\N' with None
-    df['lpi_id'] = df['lpi_id'].replace(r'\N', None)  # Convert '\N' to None
-    df['spi_id'] = df['spi_id'].replace(r'\N', None)  # Convert '\N' to None
-
     # Select the columns needed for the integrity checks
     columns_to_check = ['wildcard_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
     df_for_integrity_checks = df[columns_to_check]

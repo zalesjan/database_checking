@@ -58,7 +58,7 @@ if uploaded_file:
     if st.button("CHECK PRESENCE OF KEY COLUMNS AND DATA FORMAT RESTRICTIONS"):
         validation_results = validate_file(df, config, uploaded_file.name)
 
-    # Data (range) validation
+    # DATA (range) VALIDATION
     explore_functions = {
         "Show ASCENDING Distinct Values in Each Column": distinct_asc_values_each_column,
         "Show Distinct Values in Each Column with their Counts": distinct_values_with_counts,
@@ -72,38 +72,46 @@ if uploaded_file:
         write_and_log(f'Running function: {function_choice} on file: {uploaded_file.name}')
         explore_functions[function_choice](df)  # Call the selected function
     
-    # i could make this a function, and do the grouped etc only after pressing the button
-    df_integrity_lpi_id, df_integrity_spi_id = dataframe_for_tree_integrity(df)
-    # Get user email input
-    email = st.text_input("Enter your email to receive the results:", key="email")
+    # PLAUSIBILITY
+    if table_name == "tree_staging": 
+        df_integrity_lpi_id, df_integrity_spi_id = dataframe_for_tree_integrity(df)
+        # Get user email input
+        email = st.text_input("Enter your email to receive the results:", key="email")
 
-    if st.button("Run All Plausibility Tests"):
-        if email:
-            # Run tests in background
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                executor.submit(run_tests_in_background, df_integrity_lpi_id, email, df, xpi = 'lpi_id')
-                executor.submit(run_tests_in_background, df_integrity_spi_id, email, df, xpi = 'spi_id')
-            write_and_log(f'Tests are running in the background. Results will be sent to your email: {email}.')
-        else:
-            st.write("Please enter a valid email.")
+        if st.button("Run All Plausibility Tests"):
+            if email:
+                # Run tests in background
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    executor.submit(run_tests_in_background, df_integrity_lpi_id, email, df, xpi = 'lpi_id')
+                    executor.submit(run_tests_in_background, df_integrity_spi_id, email, df, xpi = 'spi_id')
+                write_and_log(f'Tests are running in the background. Results will be sent to your email: {email}.')
+            else:
+                st.write("Please enter a valid email.")
         
-        #DATABASE UPLOADS
-        # Button to copy data to the database
-        if st.button("Copy Data to Database"):
-            write_and_log(f'attempting to upload: {uploaded_file}')
-            load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns)
-            write_and_log("Data successfully copied to the database.")
+#DATABASE UPLOADS
+# Create a password input field
+user_password = st.text_input("To upload to database enter password", type="password")
+PASSWORD = st.secrets["general"]["site_password"]
 
-        # HELPER FUNCTIONS (set the record values, moving to tree)
-        helper_operations = {
-            "Move Data to Tree Table": move_data_to_tree, 
-            "Update unique_plot_id in tree_staging": update_unique_plot_id, 
-            "Update composed_site_id in tree table": composed_site_id_tree,}
-        helper_operation = st.selectbox("CHOOSE A HELPER OPERATION", list(helper_operations.keys()))
+# Check if the password entered by the user is correct
+if user_password == PASSWORD:
+    st.success("Password is correct. You can now proceed.")
+    # Button to copy data to the database
+    if st.button("Copy Data to Database"):
+        write_and_log(f'attempting to upload: {uploaded_file}')
+        load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns)
+        write_and_log("Data successfully copied to the database.")
 
-        # Button to trigger the selected operation
-        if st.button("Run that helper operation"):
-            write_and_log(f'Running function: {helper_operation}')
-            helper_operations[helper_operation]()
-            write_and_log(f"{helper_operation} successfully completed")
+    # HELPER FUNCTIONS (set the record values, moving to tree)
+    helper_operations = {
+        "Move Data to Tree Table": move_data_to_tree, 
+        "Update unique_plot_id in tree_staging": update_unique_plot_id, 
+        "Update composed_site_id in tree table": composed_site_id_tree,}
+    helper_operation = st.selectbox("CHOOSE A HELPER OPERATION", list(helper_operations.keys()))
+
+    # Button to trigger the selected operation
+    if st.button("Run that helper operation"):
+        write_and_log(f'Running function: {helper_operation}')
+        helper_operations[helper_operation]()
+        write_and_log(f"{helper_operation} successfully completed")
 

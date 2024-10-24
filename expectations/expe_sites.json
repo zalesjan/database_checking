@@ -1,7 +1,7 @@
 {
     "expected_columns": {
       "composed_site_id": {
-        "alternatives": ["composedsiteid", "composed"],
+        "alternatives": ["composedsiteid", "composed", "composed_site_id"],
         "non_null": true
       },
       "site_id": {
@@ -9,14 +9,14 @@
         "non_null": true
       },
       "reserve_name": {
-        "alternatives": ["res_name"],
+        "alternatives": ["res_name", "reserve_name"],
         "non_null": true
       },
       "institute": {
         "alternatives": ["institute", "institution", "institute_name", "institute"]
       },
       "wildcard_id": {
-        "alternatives": ["wildcard_sub_id", "wildcardsubid", "wildcard-sub-id", "wildcard_sub_id"],
+        "alternatives": ["wildcard_sub_id", "wildcardsubid", "wildcard-sub-id", "wildcard_sub_id", "wildcard_id"],
         "non_null": true
       }
     },
