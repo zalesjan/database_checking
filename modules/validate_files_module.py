@@ -1,4 +1,4 @@
-
+import yagmail
 import json
 import pandas as pd
 import sys
@@ -7,6 +7,11 @@ from datetime import datetime
 import os
 import logging
 from modules.logs import write_and_log
+import streamlit as st
+
+# Email configuration
+EMAIL_USER = st.secrets['email']['EMAIL_USER']
+EMAIL_PASSWORD = st.secrets['email']['EMAIL_PASSWORD']
 
 def validate_file(df, config, file_name):
     write_and_log(f'validating file: {file_name}')
@@ -158,128 +163,113 @@ def value_counts_for_each_distinct_value(df):
         for value, count in values.items():
             write_and_log(f" - {value}: {count}")
 
-def check_tree_integrity_optimized(df):
-    """
-    Optimized function to check for unusual changes in tree attributes over time in the 'tree' table.
-    
-    Parameters:
-    df (pd.DataFrame): DataFrame containing tree data with columns 'tree_id', 'inventory_year', 'dbh', 'position', 
-                       'life', 'geometry_x', 'geometry_y', 'species', and 'integrity'.
-    
-    Returns:
-    dict: A dictionary containing the results of each integrity test with their respective issues.
-    """
-    integrity_issues = {
-        "dbh_reduction": [],
-        "position_reversal": [],
-        "life_status_reversal": [],
-        "geometry_shift": [],
-        "missing_in_census": [],
-        "species_change": [],
-        "integrity_reversal": []
-    }
-
-    # Step 1: Sort the data to ensure correct chronological order
-    df = df.sort_values(by=['tree_id', 'inventory_year'])
-
-    # Step 2: Use groupby and vectorized operations for each test
-    grouped = df.groupby('tree_id')
-
-    # Check 1: DBH reduction by more than 2.5 cm or 10%
-    df['previous_dbh'] = grouped['dbh'].shift(1)
-    dbh_criteria = (df['dbh'] < df['previous_dbh'] - 2.5) | (df['dbh'] < df['previous_dbh'] * 0.9)
-    integrity_issues['dbh_reduction'] = df[dbh_criteria & df['previous_dbh'].notna()]
-
-    # Check 2: Position changes from L to S
-    df['previous_position'] = grouped['position'].shift(1)
-    position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
-    integrity_issues['position_reversal'] = df[position_criteria]
-
-    # Check 3: Life status changes from D to A
-    df['previous_life'] = grouped['life'].shift(1)
-    life_criteria = (df['previous_life'] == 'D') & (df['life'] == 'A')
-    integrity_issues['life_status_reversal'] = df[life_criteria]
-
-    # Check 4: Geometry shifts more than 1 meter
-    #df['previous_geometry_x'] = grouped['geometry_x'].shift(1)
-    #df['previous_geometry_y'] = grouped['geometry_y'].shift(1)
-    #geometry_criteria = ((df['geometry_x'] - df['previous_geometry_x']).pow(2) +
-    #                     (df['geometry_y'] - df['previous_geometry_y']).pow(2)).pow(0.5) > 1
-    #integrity_issues['geometry_shift'] = df[geometry_criteria & df['previous_geometry_x'].notna()]
-
-    # Check 5: Missing consecutive censuses for trees with 3 or more census years
-    #years_count = grouped['inventory_year'].transform('count')
-    #df['previous_year'] = grouped['inventory_year'].shift(1)
-    #census_gap = (df['inventory_year'] - df['previous_year']) > 1
-    #integrity_issues['missing_in_census'] = df[census_gap & (years_count >= 3)]
-
-    # Check 6: Species changes between inventory years
-    species_change = grouped['full_scientific'].transform('nunique') > 1
-    integrity_issues['species_change'] = df[species_change]
-
-    # Check 7: Integrity changes from F to I
-    df['previous_integrity'] = grouped['integrity'].shift(1)
-    integrity_criteria = (df['previous_integrity'] == 'F') & (df['integrity'] == 'I')
-    integrity_issues['integrity_reversal'] = df[integrity_criteria]
-
-    # Drop the temporary columns used for calculation
-    df.drop(columns=['previous_dbh', 'previous_position', 'previous_life', 'previous_integrity'], inplace=True)
-
-    # Convert DataFrames to lists of dictionaries if necessary and return non-empty results
-    return {test: issues.to_dict('records') if isinstance(issues, pd.DataFrame) and not issues.empty else issues
-            for test, issues in integrity_issues.items()
-            if (isinstance(issues, pd.DataFrame) and not issues.empty) or (isinstance(issues, list) and len(issues) > 0)}
 
 
-
-
-
-
-
-"""def check_dbh_reduction(df)
-    # Check 1: DBH reduction by more than 2.5 cm or 10%
-    jenom alive 
-    df['previous_dbh'] = grouped['dbh'].shift(1)
+def plausibility_test(df):
+    print("Before filtering or grouping, columns are:", df.head())
+    #DO THE OTHE LISTS LIKE HERE
+    #check_dbh_reduction(df): reduction by more than 2.5 cm or 10%
+    integrity_issues = {}
+    life_filter = df['life'] == "A"  
     dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
-    integrity_issues['dbh_reduction'] = df[dbh_criteria & df['previous_dbh'].notna()]
-def check_dbh_reduction(df)
-    # Check 2: Position changes from L to S
-    df['previous_position'] = grouped['position'].shift(1)
+    dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+
+    #def check_position_change(df): Position changes from L to S
     position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
-    integrity_issues['position_reversal'] = df[position_criteria]
-def check_dbh_reduction(df)
-    # Check 3: Life status changes from D to A
-    df['previous_life'] = grouped['life'].shift(1)
+    position_reversal = df[position_criteria][['wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+
+    #def check_life_status_change(df): Life status changes from D to A
     life_criteria = (df['previous_life'] == 'D') & (df['life'] == 'A')
-    integrity_issues['life_status_reversal'] = df[life_criteria]
-def check_dbh_reduction(df)
+    life_status_reversal = df[life_criteria][['wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+   
+    #def check_integrity_change(df): Integrity changes from F to C
+    death_filter = df['life'] == "D" 
+    integrity_criteria = (df['previous_integrity'] == 'F') & (df['integrity'] == 'C')
+    integrity_reversal = df[integrity_criteria & death_filter & df['previous_integrity'].notna()][['wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    
+    #def check_decay(df,): decay values either increase or stay the same, from 0 (no decay) to 5 (complete decay)
+    decay_criteria = df['decay'] < df['previous_decay']
+    decay_inconsistency = df[decay_criteria & df['previous_decay'].notna()][['wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    
+    print(f"{integrity_issues}")
+    return dbh_reduction, position_reversal, life_status_reversal, integrity_reversal, decay_inconsistency
+
+def check_species_change(df, xpi):
+    # Group by the relevant columns and check if the species changes across inventory years
+    species_change = df.groupby(['wildcard_id', xpi, 'tree_id'])['full_scientific'].transform('nunique') > 1
+
+    # Create a new column in the dataframe to store the result of the species change check
+    df['species_change'] = species_change
+
+    # Filter rows where there is a species change and create an integrity issue log
+    species_integrity_issues = df[df['species_change'] == True][['wildcard_id', 'spi_id', 'tree_id', 'inventory_year', 'full_scientific']]
+    print(f"{species_integrity_issues}")
+    return species_integrity_issues
+
+    #def check_geometry_shift(df, xpi):
     # Check 4: Geometry shifts more than 1 meter
     #df['previous_geometry_x'] = grouped['geometry_x'].shift(1)
     #df['previous_geometry_y'] = grouped['geometry_y'].shift(1)
     #geometry_criteria = ((df['geometry_x'] - df['previous_geometry_x']).pow(2) +
     #                     (df['geometry_y'] - df['previous_geometry_y']).pow(2)).pow(0.5) > 1
     #integrity_issues['geometry_shift'] = df[geometry_criteria & df['previous_geometry_x'].notna()]
-def check_dbh_reduction(df)
-    # Check 5: Missing consecutive censuses for trees with 3 or more census years
-    #years_count = grouped['inventory_year'].transform('count')
-    #df['previous_year'] = grouped['inventory_year'].shift(1)
-    #census_gap = (df['inventory_year'] - df['previous_year']) > 1
-    #integrity_issues['missing_in_census'] = df[census_gap & (years_count >= 3)]
-def check_dbh_reduction(df)
-    # Check 6: Species changes between inventory years
-    species_change = grouped['full_scientific'].transform('nunique') > 1
-    integrity_issues['species_change'] = df[species_change]
-def check_dbh_reduction(df)
-    # Check 7: Integrity changes from F to I
-    df['previous_integrity'] = grouped['integrity'].shift(1)
-    integrity_criteria = (df['previous_integrity'] == 'F') & (df['integrity'] == 'I')
-    integrity_issues['integrity_reversal'] = df[integrity_criteria]
 
-    # Drop the temporary columns used for calculation
-    df.drop(columns=['previous_dbh', 'previous_position', 'previous_life', 'previous_integrity'], inplace=True)
+def check_missing_in_census(df, xpi):
+    # Step 1: Calculate the number of distinct census years per unique_plot_id
+    plot_census_count = df.groupby(['wildcard_id', xpi])['inventory_year'].nunique().reset_index()
+    plot_census_count.columns = ['wildcard_id', xpi, 'total_census_years']
 
-    # Convert DataFrames to lists of dictionaries if necessary and return non-empty results
-    return {test: issues.to_dict('records') if isinstance(issues, pd.DataFrame) and not issues.empty else issues
-            for test, issues in integrity_issues.items()
-            if (isinstance(issues, pd.DataFrame) and not issues.empty) or (isinstance(issues, list) and len(issues) > 0)}
-    """
+    # Step 2: Merge this information back to the original dataframe to know how many censuses are expected for each plot
+    df = df.merge(plot_census_count, on=['wildcard_id', xpi], how='left')
+
+    # Step 3: Calculate how many distinct census years each tree_id appears in per unique_plot_id
+    tree_census_count = df.groupby(['wildcard_id', xpi, 'tree_id'])['inventory_year'].nunique().reset_index()
+    tree_census_count.columns = ['wildcard_id', xpi, 'tree_id', 'tree_census_years']
+
+    # Step 4: Merge this tree-level census count back to the dataframe to check for missing census records
+    df = df.merge(tree_census_count, on=['wildcard_id', xpi, 'tree_id'], how='left')
+
+    # Step 5: Identify trees that are missing from any census (when tree_census_years is less than total_census_years)
+    census_gap = df['tree_census_years'] < df['total_census_years']
+
+    # Store the result of trees that are missing from any census for their unique_plot_id
+    missing_in_census_integrity_issues = {}
+    missing_in_census_integrity_issues['missing_in_census'] = df[census_gap]
+    print(f"{missing_in_census_integrity_issues}")
+    return missing_in_census_integrity_issues
+    
+
+# Function to send results via email
+def send_email(results, email, xpi):
+    yag = yagmail.SMTP(EMAIL_USER, EMAIL_PASSWORD)
+    subject = f"Integrity Test Results for plots of type: {xpi}"
+    body = "Please find the results attached."
+
+    # Define the file path for saving the JSON file
+    temp_dir = "temp_dir"
+    os.makedirs(temp_dir, exist_ok=True)
+    json_file = "temp_dir/integrity_test_results.json"  # Temporary file path
+
+    # Process `results` to remove headers
+    processed_results = {key: value.to_dict(orient='records') if hasattr(value, 'to_dict') else value for key, value in results.items()}
+
+    # Convert the `processed_results` dictionary to JSON and save to file (without headers)
+    with open(json_file, 'w') as f:
+        json.dump(processed_results, f, default=str, indent=4)
+
+    # Send email with the JSON file as an attachment
+    yag.send(to=email, subject=subject, contents=[body, json_file])
+
+# Run tests and send the results
+def run_tests_in_background(df_integrity, email, df, xpi):
+    results = {}
+    print(f"Running tests in background")
+    try:
+        results['dbh_reduction'], results['position_reversal'], results['life_status_reversal'], results['integrity_reversal'], results['decay_inconsistency'] = plausibility_test(df_integrity)
+        results['species'] = check_species_change(df, xpi)
+        results['missing_in_census'] = check_missing_in_census(df, xpi)
+        print(f'Tests was run in the background. Results will be sent to your email.')
+        send_email(results, email, xpi)  # Send results via email
+    except Exception as e:
+        print(f"Error running plausibility_test: {e}")
+

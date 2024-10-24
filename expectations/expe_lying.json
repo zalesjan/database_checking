@@ -48,7 +48,7 @@
       "integrity": {
         "alternatives": ["integrity", "integrity_score", "integrity_status", "integrity_level"],
         "non_null": true,
-        "allowed_values": ["F", "I"]
+        "allowed_values": ["F", "C"]
       },
       "date": {
         "alternatives": ["date", "record_date", "observation_date", "entry_date"],
@@ -76,11 +76,12 @@
         "alternatives": ["length", "length_mm"],
         "non_null": true,
         "is_numeric": true,
-        "range": [0, 50000]
+        "range": [0, 20000]
       },
       "decay": {
-        "alternatives": ["decay"],
-        "allowed_values": ["F", "P"]
+        "alternatives": ["decay_numeric", "decay"],
+        "is_numeric": true,
+        "range": [0, 5]
       },
       "geom": {
         "alternatives": ["geom", "geometry", "boundaries", "geom_field"],

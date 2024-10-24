@@ -3,8 +3,9 @@ import pandas as pd
 import json
 import os
 import re
+import concurrent.futures
 from datetime import datetime
-from modules.validate_files_module import check_tree_integrity_optimized, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column
+from modules.validate_files_module import run_tests_in_background, send_email, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column, plausibility_test
 from modules.database_utils import site_password, composed_site_id_tree, get_db_connection, load_data_with_copy_command, move_data_to_tree, update_unique_plot_id
 from modules.dataframe_actions import determine_configs, dataframe_for_tree_integrity
 from modules.logs import write_and_log
@@ -47,7 +48,6 @@ if uploaded_file:
     write_and_log(f"Core columns found: {ordered_core_attributes}")
     #write_and_log(f"DF columns found: {df.columns}")
 
-    # Display the extra columns
     if extra_columns:
         write_and_log(f"Extra columns found: {extra_columns}")
     else:
@@ -72,69 +72,20 @@ if uploaded_file:
         write_and_log(f'Running function: {function_choice} on file: {uploaded_file.name}')
         explore_functions[function_choice](df)  # Call the selected function
     
-    if site_password():    
-        # CHECK DATA FOR INTEGRITY
-        grouped = dataframe_for_tree_integrity(df)
+    # i could make this a function, and do the grouped etc only after pressing the button
+    df_integrity_lpi_id, df_integrity_spi_id = dataframe_for_tree_integrity(df)
+    # Get user email input
+    email = st.text_input("Enter your email to receive the results:", key="email")
 
-        # Initialize Streamlit session state to keep track of which tests have been run
-        if 'current_test' not in st.session_state:
-            st.session_state.current_test = 0  # This will control which test to run
-        if 'integrity_issues' not in st.session_state:
-            st.session_state.integrity_issues = {}  # Store results for each test
-
-        # Select the columns needed for the integrity checks
-        columns_to_check = ['tree_id', 'wildcard_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific']
-        df_for_integrity_checks = df[columns_to_check]
-
-        # List of tests and corresponding functions
-        test_functions = {
-            "dbh_reduction": check_dbh_reduction,
-            "position_reversal": check_position_change,
-            "species_change": check_species_change,
-            "life_status_reversal": check_life_status_change,
-            "geometry_shift": check_geometry_shift,  
-            "missing_in_census": check_missing_census,
-            "integrity_reversal": check_integrity_change
-        }
-
-        # List of test names (same order as above)
-        test_names = list(test_functions.keys())
-
-        # Display a sequential button for each test
-        if st.session_state.current_test < len(test_names):
-            current_test_name = test_names[st.session_state.current_test]
-            if st.button(f"Run {current_test_name} test"):
-                # Run the corresponding test function
-                test_function = test_functions[current_test_name]
-                result = test_function(grouped)
-
-                # Store the result in the session state
-                st.session_state.integrity_issues[current_test_name] = result
-
-                # Display the result
-                st.write(f"Results for {current_test_name} test:")
-                st.dataframe(result)  # Display the resulting dataframe
-
-                # Increment the current test index to show the next test button
-                st.session_state.current_test += 1
-
-        # Display final results once all tests are run
-        if st.session_state.current_test >= len(test_names):
-            st.write("All tests completed. Here are the results for each test:")
-            for test, result in st.session_state.integrity_issues.items():
-                st.write(f"### {test.capitalize()} Test Results:")
-                st.dataframe(result)
-
-        # Optional button to reset the tests
-        if st.button("Reset Tests"):
-            st.session_state.current_test = 0
-            st.session_state.integrity_issues = {}
-            st.write("All tests have been reset.")
-        
-        # CHECK DATA FOR INTEGRITY
-        if st.button("CHECK DATA FOR INTEGRITY"):
-            integrity_issues = check_tree_integrity_optimized(df)
-            write_and_log(f'Running Integrity issues: {integrity_issues}')
+    if st.button("Run All Plausibility Tests"):
+        if email:
+            # Run tests in background
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.submit(run_tests_in_background, df_integrity_lpi_id, email, df, xpi = 'lpi_id')
+                executor.submit(run_tests_in_background, df_integrity_spi_id, email, df, xpi = 'spi_id')
+            write_and_log(f'Tests are running in the background. Results will be sent to your email: {email}.')
+        else:
+            st.write("Please enter a valid email.")
         
         #DATABASE UPLOADS
         # Button to copy data to the database
@@ -143,17 +94,16 @@ if uploaded_file:
             load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns)
             write_and_log("Data successfully copied to the database.")
 
-# HELPER FUNCTIONS (set the record values, moving to tree)
-if site_password():
-    helper_operations = {
-        "Move Data to Tree Table": move_data_to_tree, 
-        "Update unique_plot_id in tree_staging": update_unique_plot_id, 
-        "Update composed_site_id in tree table": composed_site_id_tree,}
-    helper_operation = st.selectbox("CHOOSE A HELPER OPERATION", list(helper_operations.keys()))
+        # HELPER FUNCTIONS (set the record values, moving to tree)
+        helper_operations = {
+            "Move Data to Tree Table": move_data_to_tree, 
+            "Update unique_plot_id in tree_staging": update_unique_plot_id, 
+            "Update composed_site_id in tree table": composed_site_id_tree,}
+        helper_operation = st.selectbox("CHOOSE A HELPER OPERATION", list(helper_operations.keys()))
 
-    # Button to trigger the selected operation
-    if st.button("Run that helper operation"):
-        write_and_log(f'Running function: {helper_operation}')
-        helper_operations[helper_operation]()
-        write_and_log(f"{helper_operation} successfully completed")
+        # Button to trigger the selected operation
+        if st.button("Run that helper operation"):
+            write_and_log(f'Running function: {helper_operation}')
+            helper_operations[helper_operation]()
+            write_and_log(f"{helper_operation} successfully completed")
 

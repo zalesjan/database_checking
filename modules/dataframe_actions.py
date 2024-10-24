@@ -103,14 +103,33 @@ def determine_configs(file_path, df_columns):
     raise ValueError("File name does not match any known configuration")
 
 def dataframe_for_tree_integrity(df):
+    # Replace '\N' with None
+    df['lpi_id'] = df['lpi_id'].replace(r'\N', None)  # Convert '\N' to None
+    df['spi_id'] = df['spi_id'].replace(r'\N', None)  # Convert '\N' to None
+
     # Select the columns needed for the integrity checks
-    columns_to_check = ['tree_id', 'wildcard_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific']
+    columns_to_check = ['wildcard_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
     df_for_integrity_checks = df[columns_to_check]
 
-    # Step 1: Sort the data to ensure correct chronological order
-    df_integrity = df_for_integrity_checks.sort_values(by=['tree_id', 'inventory_year'])
+    # Step 1: Sort the data to ensure correct chronological order within groups
+    df_integrity_lpi_id = df_for_integrity_checks.sort_values(by=['wildcard_id', 'lpi_id', 'tree_id', 'inventory_year'])
+    df_integrity_spi_id = df_for_integrity_checks.sort_values(by=['wildcard_id', 'spi_id', 'tree_id', 'inventory_year'])
 
-    # Step 2: Use groupby and vectorized operations for each test
-    grouped = df.groupby('tree_id')
+    # Step 2: Use groupby (without inventory_year) and create previous values for each column
+    grouped_lpi_id = df_integrity_lpi_id.groupby(['wildcard_id', 'lpi_id', 'tree_id'])
+    grouped_spi_id = df_integrity_spi_id.groupby(['wildcard_id', 'spi_id', 'tree_id'])
 
-    return grouped
+    # Create previous counterparts for each column and add them to the DataFrame
+    for column in columns_to_check:
+        if column != 'inventory_year':  # Skip inventory_year for the shift
+            df_integrity_lpi_id[f'previous_{column}'] = grouped_lpi_id[column].shift(1)
+            df_integrity_spi_id[f'previous_{column}'] = grouped_spi_id[column].shift(1)
+
+
+    # Now df_integrity contains both current and previous values for the relevant columns
+    print("DataFrame with current and previous values:")
+    print(df_integrity_lpi_id)  # Print the first few rows for inspection
+    print(df_integrity_spi_id)  # Print the first few rows for inspection
+
+    return df_integrity_lpi_id, df_integrity_spi_id
+

@@ -39,7 +39,7 @@
         "life": {
             "alternatives": ["life", "lifetime", "life-span", "life_period"],
             "non_null": true,
-            "allowed_values": ["D", "L"]
+            "allowed_values": ["D", "A"]
         },
         "position": {
             "alternatives": ["position", "pos", "location", "site_position"],
@@ -49,13 +49,13 @@
         "integrity": {
             "alternatives": ["integrity", "integrity_score", "integrity_status", "integrity_level"],
             "non_null": true,
-            "allowed_values": ["F", "I"]
+            "allowed_values": ["F", "C"]
         },
         "height": {
             "alternatives": ["height_m", "height"],
             "non_null": true,
             "is_numeric": true,
-            "range": [0, 100]
+            "range": [0, 180]
         },
         "date": {
             "alternatives": ["date", "record_date", "observation_date", "entry_date"],
