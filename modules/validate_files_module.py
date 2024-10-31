@@ -170,9 +170,10 @@ def plausibility_test(df):
     #DO THE OTHE LISTS LIKE HERE
     #check_dbh_reduction(df): reduction by more than 2.5 cm or 10%
     integrity_issues = {}
-    life_filter = df['life'] == "A"  
-    dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
-    dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    if 'dbh' in df.columns and 'previous_dbh' in df.columns:
+        life_filter = df['life'] == "A"  
+        dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
+        dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
 
     #def check_position_change(df): Position changes from L to S
     position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
@@ -272,4 +273,37 @@ def run_tests_in_background(df_integrity, email, df, xpi):
         send_email(results, email, xpi)  # Send results via email
     except Exception as e:
         print(f"Error running plausibility_test: {e}")
+        
+def query_check(file_1, file_2):
+    # Load the files into DataFrames
+    df1 = pd.read_csv(file_1)
+    df2 = pd.read_csv(file_2)
 
+    # Convert columns to lowercase
+    df1.columns = df1.columns.str.lower()
+    df2.columns = df2.columns.str.lower()
+    
+    # Define the join columns
+    join_columns = ["site_id", "wildcard_id", "spi_id", "inventory_year","full_scientific", "life"]
+
+    # Check if all join columns are present in both DataFrames
+    missing_columns_df1 = [col for col in join_columns if col not in df1.columns]
+    missing_columns_df2 = [col for col in join_columns if col not in df2.columns]
+
+    if missing_columns_df1 or missing_columns_df2:
+        if missing_columns_df1:
+            st.error(f"File 1 is missing required columns: {missing_columns_df1}")
+        if missing_columns_df2:
+            st.error(f"File 2 is missing required columns: {missing_columns_df2}")
+        return None  # Stop if required columns are missing
+
+    # Merge DataFrames
+    merged_df = pd.merge(df1, df2, on=join_columns, suffixes=('_file1', '_file2'))
+    
+    # Check for columns with the same name in both files and calculate differences if numerical
+    for col in set(df1.columns).intersection(df2.columns) - set(join_columns):
+        if pd.api.types.is_numeric_dtype(df1[col]) and pd.api.types.is_numeric_dtype(df2[col]):
+            merged_df[f"{col}_diff"] = merged_df[f"{col}_file1"] - merged_df[f"{col}_file2"]
+
+    # Display merged DataFrame
+    return merged_df

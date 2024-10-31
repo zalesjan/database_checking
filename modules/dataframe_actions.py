@@ -106,8 +106,13 @@ def determine_configs(file_path, df_columns):
     raise ValueError("File name does not match any known configuration")
 
 def dataframe_for_tree_integrity(df):
-    # Select the columns needed for the integrity checks
+    # Define the columns needed for the integrity checks
     columns_to_check = ['wildcard_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
+    
+    # Filter only existing columns in df
+    columns_to_check = [col for col in columns_to_check if col in df.columns]
+    
+    # Create a filtered DataFrame for integrity checks
     df_for_integrity_checks = df[columns_to_check]
 
     # Step 1: Sort the data to ensure correct chronological order within groups
@@ -117,6 +122,7 @@ def dataframe_for_tree_integrity(df):
     # Step 2: Use groupby (without inventory_year) and create previous values for each column
     grouped_lpi_id = df_integrity_lpi_id.groupby(['wildcard_id', 'lpi_id', 'tree_id'])
     grouped_spi_id = df_integrity_spi_id.groupby(['wildcard_id', 'spi_id', 'tree_id'])
+
 
     # Create previous counterparts for each column and add them to the DataFrame
     for column in columns_to_check:

@@ -5,7 +5,7 @@ import os
 import re
 import concurrent.futures
 from datetime import datetime
-from modules.validate_files_module import run_tests_in_background, send_email, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column, plausibility_test
+from modules.validate_files_module import query_check, run_tests_in_background, send_email, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column, plausibility_test
 from modules.database_utils import site_password, composed_site_id_tree, get_db_connection, load_data_with_copy_command, move_data_to_tree, update_unique_plot_id
 from modules.dataframe_actions import determine_configs, dataframe_for_tree_integrity
 from modules.logs import write_and_log
@@ -115,3 +115,21 @@ if user_password == PASSWORD:
         helper_operations[helper_operation]()
         write_and_log(f"{helper_operation} successfully completed")
 
+# Initialize session state for files if not already done
+if "file_1" not in st.session_state:
+    st.session_state["file_1"] = None
+if "file_2" not in st.session_state:
+    st.session_state["file_2"] = None
+
+# File uploaders for two CSV files with state saving
+st.session_state["file_1"] = st.file_uploader("Upload first CSV file", type="csv")
+st.session_state["file_2"] = st.file_uploader("Upload second CSV file", type="csv")
+
+if st.button("Compare DB output to provider output") and st.session_state["file_1"] and st.session_state["file_2"]:
+    # Proceed only if both files are uploaded
+    file_1 = st.session_state["file_1"]
+    file_2 = st.session_state["file_2"]
+
+    merged_df = query_check(st.session_state["file_1"], st.session_state["file_2"])
+    write_and_log("Merged DataFrame with Differences:")
+    write_and_log(merged_df)

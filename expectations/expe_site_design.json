@@ -11,7 +11,7 @@
       "institute": {
         "alternatives": ["institute", "institution", "institute_name", "institute"]
       },
-      "wildcard_sub_id": {
+      "wildcard_id": {
         "alternatives": ["wildcard_sub_id", "wildcardsubid", "wildcard-sub-id", "wildcard_sub_id"],
         "non_null": true
       },
@@ -97,11 +97,11 @@
         "allowed_values": [4326, 3857, 32633, 27700]
       },
       "forest_type": {
-        "alternatives": ["forest_type", "foresttype", "forest-type"],
+        "alternatives": ["his_fortype", "forest_type", "foresttype", "forest-type"],
         "allowed_values": ["Boreal", "Temperate", "Tropical", "Subtropical"]
       },
-      "year_abandoment": {
-        "alternatives": ["year_abandoment", "yearabandoment", "year-abandoment"],
+      "year_abandonment": {
+        "alternatives": ["year_abandonment", "yearabandoment", "year-abandoment"],
         "is_numeric": true,
         "range": [1800, "current_year"]
       },
@@ -110,7 +110,7 @@
         "is_boolean": true
       },
       "soil_class": {
-        "alternatives": ["soil_class", "soilclass", "soil-class"],
+        "alternatives": ["his_soil", "soil_class", "soilclass", "soil-class"],
         "allowed_values": ["Sandy", "Clay", "Loam", "Silt"]
       },
       "other": {

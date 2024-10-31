@@ -4,7 +4,7 @@
         "alternatives": ["site_name", "sitename", "site-name", "location_name"],
         "non_null": true
       },
-      "wildcard_sub_id": {
+      "wildcard_id": {
         "alternatives": ["wildcard_id", "wildcardsubid", "wildcard-sub-id", "sub_id_wildcard"],
         "non_null": true
       },
