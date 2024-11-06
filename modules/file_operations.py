@@ -3,6 +3,7 @@ from office365.runtime.auth.client_credential import ClientCredential
 import schedule
 import time
 import os
+import streamlit as st
 
 # SharePoint credentials
 sharepoint_url = "https://your-sharepoint-site-url"
@@ -32,3 +33,20 @@ schedule.every(5).minutes.do(check_new_files)
 while True:
     schedule.run_pending()
     time.sleep(1)
+
+def upload_file():
+    # Ensure the temporary directory exists
+    temp_dir = "temp_dir"
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Save the uploaded file temporarily
+    uploaded_file_path = os.path.join("temp_dir", uploaded_file.name)
+    with open(uploaded_file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+        write_and_log(f'uploaded_file: {uploaded_file}')
+
+    # Load the file into a DataFrame
+    df = pd.read_csv(uploaded_file, delimiter='\t')
+    st.write("Data Preview:", df.head())
+    
+    return df, uploaded_file_path

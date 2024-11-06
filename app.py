@@ -6,7 +6,7 @@ import re
 import concurrent.futures
 from datetime import datetime
 from modules.validate_files_module import query_check, run_tests_in_background, send_email, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column, plausibility_test
-from modules.database_utils import site_password, composed_site_id_tree, get_db_connection, load_data_with_copy_command, move_data_to_tree, update_unique_plot_id
+from modules.database_utils import site_password, get_db_connection, load_data_with_copy_command, do_query, composed_site_id_sites, move_data_to_tree, update_unique_plot_id_3stg, get_wildcard_db_id, composed_site_id_to_all
 from modules.dataframe_actions import determine_configs, dataframe_for_tree_integrity
 from modules.logs import write_and_log
 import logging
@@ -38,16 +38,13 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file, delimiter='\t')
     st.write("Data Preview:", df.head())
 
-    #GET CONFIGS
-    # Load configuration based on file name
+    #GET CONFIGS AND COLUMNS based on file name
     table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file.name, df.columns)
     # Determine the extra columns that are not part of the ordered_core_attributes
     extra_columns = [col for col in df.columns if col not in core_and_alternative_columns]
     
     # Extract expected column names (main attributes, not alternatives)
     write_and_log(f"Core columns found: {ordered_core_attributes}")
-    #write_and_log(f"DF columns found: {df.columns}")
-
     if extra_columns:
         write_and_log(f"Extra columns found: {extra_columns}")
     else:
@@ -88,7 +85,7 @@ if uploaded_file:
             else:
                 st.write("Please enter a valid email.")
         
-#DATABASE UPLOADS
+#DATABASE ACTIONS
 # Create a password input field
 user_password = st.text_input("To upload to database enter password", type="password")
 PASSWORD = st.secrets["general"]["site_password"]
@@ -96,40 +93,46 @@ PASSWORD = st.secrets["general"]["site_password"]
 # Check if the password entered by the user is correct
 if user_password == PASSWORD:
     st.success("Password is correct. You can now proceed.")
-    # Button to copy data to the database
+    # COPY TO DATABASE
     if st.button("Copy Data to Database"):
         write_and_log(f'attempting to upload: {uploaded_file}')
         load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns)
         write_and_log("Data successfully copied to the database.")
 
-    # HELPER FUNCTIONS (set the record values, moving to tree)
+    # HELPER FUNCTIONS (set the record_id values, moving to tree)
     helper_operations = {
         "Move Data to Tree Table": move_data_to_tree, 
-        "Update unique_plot_id in tree_staging": update_unique_plot_id, 
-        "Update composed_site_id in tree table": composed_site_id_tree,}
-    helper_operation = st.selectbox("CHOOSE A HELPER OPERATION", list(helper_operations.keys()))
+        "Update unique_plot_id in tree_staging": update_unique_plot_id_3stg, 
+        "Update composed_site_id in sites table": composed_site_id_sites,
+        "Propagate composed_site_id from sites table to all tables":composed_site_id_to_all,
+        "get_wildcard_db_id": get_wildcard_db_id}
 
-    # Button to trigger the selected operation
+    helper_operation_key = st.selectbox("CHOOSE A HELPER OPERATION", list(helper_operations.keys()))
+    selected_function = helper_operations[helper_operation_key]
+
     if st.button("Run that helper operation"):
-        write_and_log(f'Running function: {helper_operation}')
-        helper_operations[helper_operation]()
-        write_and_log(f"{helper_operation} successfully completed")
+        if helper_operation_key == "Propagate composed_site_id from sites table to all tables":
+            composed_site_id_to_all()
+        else:    
+            do_query(selected_function)
+        write_and_log(f"{selected_function} successfully completed")
 
-# Initialize session state for files if not already done
-if "file_1" not in st.session_state:
-    st.session_state["file_1"] = None
-if "file_2" not in st.session_state:
-    st.session_state["file_2"] = None
+    #FILE COMPARISON ("QUERy TESTING")
+    # Initialize session state for files if not already done
+    if "file_1" not in st.session_state:
+        st.session_state["file_1"] = None
+    if "file_2" not in st.session_state:
+        st.session_state["file_2"] = None
 
-# File uploaders for two CSV files with state saving
-st.session_state["file_1"] = st.file_uploader("Upload first CSV file", type="csv")
-st.session_state["file_2"] = st.file_uploader("Upload second CSV file", type="csv")
+    # File uploaders for two CSV files with state saving
+    st.session_state["file_1"] = st.file_uploader("Upload first CSV file", type="csv")
+    st.session_state["file_2"] = st.file_uploader("Upload second CSV file", type="csv")
 
-if st.button("Compare DB output to provider output") and st.session_state["file_1"] and st.session_state["file_2"]:
-    # Proceed only if both files are uploaded
-    file_1 = st.session_state["file_1"]
-    file_2 = st.session_state["file_2"]
+    if st.button("Compare DB output to provider output") and st.session_state["file_1"] and st.session_state["file_2"]:
+        # Proceed only if both files are uploaded
+        file_1 = st.session_state["file_1"]
+        file_2 = st.session_state["file_2"]
 
-    merged_df = query_check(st.session_state["file_1"], st.session_state["file_2"])
-    write_and_log("Merged DataFrame with Differences:")
-    write_and_log(merged_df)
+        merged_df = query_check(st.session_state["file_1"], st.session_state["file_2"])
+        write_and_log("Merged DataFrame with Differences:")
+        write_and_log(merged_df)
