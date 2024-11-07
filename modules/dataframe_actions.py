@@ -1,6 +1,33 @@
 import json
 import os
+import pandas as pd
+import streamlit as st
 from modules.logs import write_and_log
+
+def df_from_uploaded_file(uploaded_file):
+    # Ensure the temporary directory exists
+    temp_dir = "temp_dir"
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Save the uploaded file temporarily
+    uploaded_file_path = os.path.join("temp_dir", uploaded_file.name)
+    with open(uploaded_file_path, "wb") as f:
+        f.write(uploaded_file.getbuffer())
+
+    # Load the file into a DataFrame
+    df = pd.read_csv(uploaded_file, delimiter='\t')
+    st.write("Data Preview:", df.head())
+    return df
+
+def extra_columns(df, core_and_alternative_columns, ordered_core_attributes):
+    # Extract expected column names (main attributes, not alternatives)
+    extra_columns = [col for col in df.columns if col not in core_and_alternative_columns]
+    write_and_log(f"Core columns found: {ordered_core_attributes}")
+    if extra_columns:
+        write_and_log(f"Extra columns found: {extra_columns}")
+        return extra_columns    
+    else:
+        write_and_log("No extra columns found.")
 
 def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns):
     """

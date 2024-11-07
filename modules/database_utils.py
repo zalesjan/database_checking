@@ -7,13 +7,8 @@ from datetime import datetime
 import json
 from modules.logs import write_and_log
 from modules.dataframe_actions import prepare_dataframe_for_copy, determine_copy_command
-# Functions that were refactored
-"""composed_site_id_update_in_all_from_sites
-def ref_update_unique_plot_id(): 
-def ref_move_data_to_tree():
-def ref_composed_site_id_sites():
-get_wildcard_db_id"""
-#queries
+
+#queries used in helper operations
 get_wildcard_db_id = "SELECT composed_site_id, record_id FROM public.sites"
 update_unique_plot_id_3stg ="""
         UPDATE tree_staging t
@@ -144,8 +139,14 @@ def do_query(query):
             cur.close()
             conn.close()
 
-def wildcard_db_id(client):
+# Authenticate with Google Sheets API
+def google_sheets_auth():
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    credentials = Credentials.from_service_account_file("path/to/your-service-account.json", scopes=scopes)
+    client = gspread.authorize(credentials)
+    return client
 
+def wildcard_db_id(client):
     # Authenticate and load Google Sheets data
     client = google_sheets_auth()
     sheet_url = "https://docs.google.com/spreadsheets/d/1ZThaqGRmRJG7jfbnWNP52C_IKnjHgofU3lR87dgD0o0/edit?gid=0#gid=0"

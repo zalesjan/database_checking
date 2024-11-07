@@ -113,7 +113,7 @@ def distinct_asc_values_each_column(df):
         
         distinct_values[column] = sorted_values
     
-    write_and_log("Distinct ASC Values in Each Column:")
+    st.write("Distinct ASC Values in Each Column:")
     for column, values in distinct_values.items():
         write_and_log(f"**{column}**: {values}")
 
@@ -137,7 +137,7 @@ def distinct_value_counts(df):
         unique_count = df[column].nunique(dropna=True)  # Get the number of unique values
         unique_value_counts[column] = unique_count
     
-    write_and_log("Number of Unique Values in Each Column:")
+    st.write("Number of Unique Values in Each Column:")
     for column, count in unique_value_counts.items():
         write_and_log(f"**{column}**: {count} unique values")
 
@@ -157,13 +157,11 @@ def value_counts_for_each_distinct_value(df):
 
         distinct_values_with_counts[column] = sorted_values
     
-    write_and_log("Distinct Values and Counts in Each Column:")
+    st.write("Distinct Values and Counts in Each Column:")
     for column, values in distinct_values_with_counts.items():
         write_and_log(f"**{column}**:")
         for value, count in values.items():
             write_and_log(f" - {value}: {count}")
-
-
 
 def plausibility_test(df):
     print("Before filtering or grouping, columns are:", df.head())
@@ -296,7 +294,7 @@ def run_tests_in_background(df_integrity, email, df, xpi):
     except Exception as e:
         print(f"Error running plausibility_test: {e}")
         
-def query_check(file_1, file_2):
+def file_comparison(file_1, file_2):
     # Load the files into DataFrames
     df1 = pd.read_csv(file_1)
     df2 = pd.read_csv(file_2)

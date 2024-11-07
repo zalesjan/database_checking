@@ -5,9 +5,9 @@ import os
 import re
 import concurrent.futures
 from datetime import datetime
-from modules.validate_files_module import query_check, run_tests_in_background, send_email, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column, plausibility_test
+from modules.validate_files_module import file_comparison, run_tests_in_background, send_email, value_counts_for_each_distinct_value, distinct_value_counts, distinct_values_with_counts, validate_file, log_validation, distinct_asc_values_each_column, plausibility_test
 from modules.database_utils import site_password, get_db_connection, load_data_with_copy_command, do_query, composed_site_id_sites, move_data_to_tree, update_unique_plot_id_3stg, get_wildcard_db_id, composed_site_id_to_all
-from modules.dataframe_actions import determine_configs, dataframe_for_tree_integrity
+from modules.dataframe_actions import determine_configs, dataframe_for_tree_integrity, extra_columns, df_from_uploaded_file
 from modules.logs import write_and_log
 import logging
     
@@ -24,31 +24,11 @@ st.title("Data Validation and Copy to Database")
 # FILE UPLOAD
 uploaded_file = st.file_uploader("Choose a file", type=["csv", "txt"])
 if uploaded_file:
-    # Ensure the temporary directory exists
-    temp_dir = "temp_dir"
-    os.makedirs(temp_dir, exist_ok=True)
+    df = df_from_uploaded_file(uploaded_file)
 
-    # Save the uploaded file temporarily
-    uploaded_file_path = os.path.join("temp_dir", uploaded_file.name)
-    with open(uploaded_file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-        logging.info(f'uploaded_file: {uploaded_file}')
-
-    # Load the file into a DataFrame
-    df = pd.read_csv(uploaded_file, delimiter='\t')
-    st.write("Data Preview:", df.head())
-
-    #GET CONFIGS AND COLUMNS based on file name
+    #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes
     table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file.name, df.columns)
-    # Determine the extra columns that are not part of the ordered_core_attributes
-    extra_columns = [col for col in df.columns if col not in core_and_alternative_columns]
-    
-    # Extract expected column names (main attributes, not alternatives)
-    write_and_log(f"Core columns found: {ordered_core_attributes}")
-    if extra_columns:
-        write_and_log(f"Extra columns found: {extra_columns}")
-    else:
-        write_and_log("No extra columns found.")
+    extra_columns = extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
 
     # VALIDATION
     # PRESENCE OF KEY COLUMNS AND DATA (FORMAT) RESTRICTIONS
@@ -133,6 +113,6 @@ if user_password == PASSWORD:
         file_1 = st.session_state["file_1"]
         file_2 = st.session_state["file_2"]
 
-        merged_df = query_check(st.session_state["file_1"], st.session_state["file_2"])
+        merged_df = file_comparison(st.session_state["file_1"], st.session_state["file_2"])
         write_and_log("Merged DataFrame with Differences:")
         write_and_log(merged_df)
