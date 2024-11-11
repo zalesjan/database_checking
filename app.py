@@ -24,7 +24,7 @@ st.title("Data Validation and Copy to Database")
 # FILE UPLOAD
 uploaded_file = st.file_uploader("Choose a file", type=["csv", "txt"])
 if uploaded_file:
-    df = df_from_uploaded_file(uploaded_file)
+    df, uploaded_file_path = df_from_uploaded_file(uploaded_file)
 
     #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes
     table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file.name, df.columns)

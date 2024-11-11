@@ -20,10 +20,20 @@ update_unique_plot_id_3stg ="""
             AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
             ;
         """
+update_design_id_in_plots ="""NOT FINISHED . how to do a condition that inventory type is something and then the respective (SPI or LPI_ID) is not null
+        UPDATE plots p
+        SET unique_site_design_id = d.record_id
+        FROM site_design d
+        WHERE 
+            p.site_name = d.site_name
+            AND p.inventory_year = d.inventory_year
+            AND (p.lpi_id = d.lpi_id OR p.spi_id = d.spi_id)
+            ;
+        """
 move_data_to_tree = """
-        INSERT INTO public.tree (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_id)
+        INSERT INTO public.tree (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_sub_id)
         SELECT 
-            composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_id
+            composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_sub_id
         FROM
             public.tree_staging;
         """
@@ -55,7 +65,7 @@ def site_password():
 
 def get_db_connection():
     #["postgres"], ["vukoz"]
-    role = "vukoz"
+    role = "postgres"
     try:
         conn = psycopg2.connect(
             host=st.secrets[role]["DB_HOST"],
@@ -119,6 +129,7 @@ def composed_site_id_to_all():
             SET composed_site_id = s.composed_site_id
             FROM sites s
             WHERE 
+                t.site_name = s.reserve_name
                 t.wildcard_id = s.wildcard_id; 
                 """
         do_query(composed_site_id_update_in_all_from_sites)

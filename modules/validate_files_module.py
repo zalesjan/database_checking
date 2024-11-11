@@ -184,28 +184,28 @@ def plausibility_test(df):
     if 'dbh' in df.columns and 'previous_dbh' in df.columns:
         life_filter = df['life'] == "A"  
         dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
-        dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+        dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id', 'inventory_year']]
         #integrity_issues['dbh_reduction'] = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
 
     #def check_position_change(df): Position changes from L to S
     position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
-    position_reversal = df[position_criteria][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    position_reversal = df[position_criteria][['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id', 'inventory_year']]
     #integrity_issues['position_reversal'] = df[position_criteria][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
 
     #def check_life_status_change(df): Life status changes from D to A
     life_criteria = (df['previous_life'] == 'D') & (df['life'] == 'A')
-    life_status_reversal = df[life_criteria][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    life_status_reversal = df[life_criteria][['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id', 'inventory_year']]
     #integrity_issues['life_status_reversal'] = df[life_criteria][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
 
     #def check_integrity_change(df): Integrity changes from F to C
     death_filter = df['life'] == "D" 
     integrity_criteria = (df['previous_integrity'] == 'F') & (df['integrity'] == 'C')
-    integrity_reversal = df[integrity_criteria & death_filter & df['previous_integrity'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    integrity_reversal = df[integrity_criteria & death_filter & df['previous_integrity'].notna()][['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id', 'inventory_year']]
     #integrity_issues['integrity_reversal'] = df[integrity_criteria & death_filter & df['previous_integrity'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
 
     #def check_decay(df,): decay values either increase or stay the same, from 0 (no decay) to 5 (complete decay)
     decay_criteria = df['decay'] < df['previous_decay']
-    decay_inconsistency = df[decay_criteria & df['previous_decay'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    decay_inconsistency = df[decay_criteria & df['previous_decay'].notna()][['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id', 'inventory_year']]
     #integrity_issues['decay_inconsistency'] = df[decay_criteria & df['previous_decay'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
     
     #integrity_issues = dbh_reduction, position_reversal, life_status_reversal, integrity_reversal, decay_inconsistency
@@ -216,13 +216,13 @@ def plausibility_test(df):
 
 def check_species_change(df, xpi):
     # Group by the relevant columns and check if the species changes across inventory years
-    species_change = df.groupby(['site_id', 'wildcard_id', xpi, 'tree_id'])['full_scientific'].transform('nunique') > 1
+    species_change = df.groupby(['site_id', 'wildcard_sub_id', xpi, 'tree_id'])['full_scientific'].transform('nunique') > 1
 
     # Create a new column in the dataframe to store the result of the species change check
     df['species_change'] = species_change
 
     # Filter rows where there is a species change and create an integrity issue log
-    species_integrity_issues = df[df['species_change'] == True][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year', 'full_scientific']]
+    species_integrity_issues = df[df['species_change'] == True][['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id', 'inventory_year', 'full_scientific']]
     print(f"{species_integrity_issues}")
     return species_integrity_issues
 
@@ -236,18 +236,18 @@ def check_species_change(df, xpi):
 
 def check_missing_in_census(df, xpi):
     # Step 1: Calculate the number of distinct census years per unique_plot_id
-    plot_census_count = df.groupby(['site_id', 'wildcard_id', xpi])['inventory_year'].nunique().reset_index()
-    plot_census_count.columns = ['site_id', 'wildcard_id', xpi, 'total_census_years']
+    plot_census_count = df.groupby(['site_id', 'wildcard_sub_id', xpi])['inventory_year'].nunique().reset_index()
+    plot_census_count.columns = ['site_id', 'wildcard_sub_id', xpi, 'total_census_years']
 
     # Step 2: Merge this information back to the original dataframe to know how many censuses are expected for each plot
-    df = df.merge(plot_census_count, on=['site_id', 'wildcard_id', xpi], how='left')
+    df = df.merge(plot_census_count, on=['site_id', 'wildcard_sub_id', xpi], how='left')
 
     # Step 3: Calculate how many distinct census years each tree_id appears in per unique_plot_id
-    tree_census_count = df.groupby(['site_id', 'wildcard_id', xpi, 'tree_id'])['inventory_year'].nunique().reset_index()
-    tree_census_count.columns = ['site_id', 'wildcard_id', xpi, 'tree_id', 'tree_census_years']
+    tree_census_count = df.groupby(['site_id', 'wildcard_sub_id', xpi, 'tree_id'])['inventory_year'].nunique().reset_index()
+    tree_census_count.columns = ['site_id', 'wildcard_sub_id', xpi, 'tree_id', 'tree_census_years']
 
     # Step 4: Merge this tree-level census count back to the dataframe to check for missing census records
-    df = df.merge(tree_census_count, on=['site_id', 'wildcard_id', xpi, 'tree_id'], how='left')
+    df = df.merge(tree_census_count, on=['site_id', 'wildcard_sub_id', xpi, 'tree_id'], how='left')
 
     # Step 5: Identify trees that are missing from any census (when tree_census_years is less than total_census_years)
     census_gap = df['tree_census_years'] < df['total_census_years']
@@ -304,7 +304,7 @@ def file_comparison(file_1, file_2):
     df2.columns = df2.columns.str.lower()
     
     # Define the join columns
-    join_columns = ["site_id", "wildcard_id", "spi_id", "inventory_year","full_scientific", "life"]
+    join_columns = ["site_id", "wildcard_sub_id", "spi_id", "inventory_year","full_scientific", "life"]
 
     # Check if all join columns are present in both DataFrames
     missing_columns_df1 = [col for col in join_columns if col not in df1.columns]

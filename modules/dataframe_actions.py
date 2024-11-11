@@ -17,7 +17,7 @@ def df_from_uploaded_file(uploaded_file):
     # Load the file into a DataFrame
     df = pd.read_csv(uploaded_file, delimiter='\t')
     st.write("Data Preview:", df.head())
-    return df
+    return df, uploaded_file_path
 
 def extra_columns(df, core_and_alternative_columns, ordered_core_attributes):
     # Extract expected column names (main attributes, not alternatives)
@@ -25,9 +25,9 @@ def extra_columns(df, core_and_alternative_columns, ordered_core_attributes):
     write_and_log(f"Core columns found: {ordered_core_attributes}")
     if extra_columns:
         write_and_log(f"Extra columns found: {extra_columns}")
-        return extra_columns    
     else:
         write_and_log("No extra columns found.")
+    return extra_columns if extra_columns else []
 
 def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns):
     """
@@ -132,7 +132,7 @@ def determine_configs(file_path, df_columns):
 
 def dataframe_for_tree_integrity(df):
     # Define the columns needed for the integrity checks
-    columns_to_check = ['site_id', 'wildcard_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
+    columns_to_check = ['site_id', 'wildcard_sub_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
     
     # Filter only existing columns in df
     columns_to_check = [col for col in columns_to_check if col in df.columns]
@@ -141,12 +141,12 @@ def dataframe_for_tree_integrity(df):
     df_for_integrity_checks = df[columns_to_check]
 
     # Step 1: Sort the data to ensure correct chronological order within groups
-    df_integrity_lpi_id = df_for_integrity_checks.sort_values(by=['site_id', 'wildcard_id', 'lpi_id', 'tree_id', 'inventory_year'])
-    df_integrity_spi_id = df_for_integrity_checks.sort_values(by=['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year'])
+    df_integrity_lpi_id = df_for_integrity_checks.sort_values(by=['site_id', 'wildcard_sub_id', 'lpi_id', 'tree_id', 'inventory_year'])
+    df_integrity_spi_id = df_for_integrity_checks.sort_values(by=['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id', 'inventory_year'])
 
     # Step 2: Use groupby (without inventory_year) and create previous values for each column
-    grouped_lpi_id = df_integrity_lpi_id.groupby(['site_id', 'wildcard_id', 'spi_id', 'tree_id'])
-    grouped_spi_id = df_integrity_spi_id.groupby(['site_id', 'wildcard_id', 'spi_id', 'tree_id'])
+    grouped_lpi_id = df_integrity_lpi_id.groupby(['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id'])
+    grouped_spi_id = df_integrity_spi_id.groupby(['site_id', 'wildcard_sub_id', 'spi_id', 'tree_id'])
 
 
     # Create previous counterparts for each column and add them to the DataFrame

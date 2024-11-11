@@ -88,7 +88,7 @@
             "alternatives": ["institute", "institute_name", "inst"],
             "non_null": true
         },
-        "wildcard_id": {
+        "wildcard_sub_id": {
             "alternatives": ["wildcard_sub_id", "wildcard_id", "sub_id"],
             "non_null": true
         }

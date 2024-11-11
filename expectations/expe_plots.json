@@ -4,8 +4,8 @@
         "alternatives": ["site_name", "sitename", "site-name", "location_name"],
         "non_null": true
       },
-      "wildcard_id": {
-        "alternatives": ["wildcard_id", "wildcardsubid", "wildcard-sub-id", "sub_id_wildcard"],
+      "wildcard_sub_id": {
+        "alternatives": ["wildcard_sub_id", "wildcardsubid", "wildcard-sub-id", "sub_id_wildcard"],
         "non_null": true
       },
       "lpi_id": {

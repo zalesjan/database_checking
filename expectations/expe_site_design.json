@@ -11,7 +11,7 @@
       "institute": {
         "alternatives": ["institute", "institution", "institute_name", "institute"]
       },
-      "wildcard_id": {
+      "wildcard_sub_id": {
         "alternatives": ["wildcard_sub_id", "wildcardsubid", "wildcard-sub-id", "wildcard_sub_id"],
         "non_null": true
       },
