@@ -1,0 +1,40 @@
+
+{
+    "expected_columns": {
+        "other":  {
+            "alternatives": ["other", "other_info"]
+        }, 
+        "institute": {
+            "alternatives": ["institute", "institute_name"],
+            "non_null": true,
+            "allowed_values": ["FVA-BW", "UNIUD", "USV", "VUKOZ", "WSL", "UNITO"]
+        },
+        "table_name": {
+            "alternatives": ["stable_name", "table"],
+            "non_null": true
+        },
+        "field_name": {
+            "alternatives": ["field_name", "field"],
+            "non_null": true
+        },
+        "info": {
+            "alternatives": ["info"]
+        },
+        "value_code": {
+            "alternatives": ["value_code", "value"]
+        },
+        "value_description": {
+            "alternatives": ["value_description", "desciption"]
+        },
+        "field_desciption": {
+            "alternatives": ["field_desciption"]
+        }
+        
+    },
+    "required_non_null_columns": [
+        "institute",
+        "table_name",
+        "field_name"
+    ]
+}
+    

@@ -1,7 +1,10 @@
 
 {
     "expected_columns": {
-        "site_id": {
+        "composed_site_id":  {
+        "alternatives": ["composed_site_id", "composed_id"],
+        "non_null": true
+        }, "site_id": {
             "alternatives": ["site_id", "siteid", "site-id", "siteidentifier"],
             "non_null": true
         },
@@ -73,7 +76,7 @@
             "alternatives": ["dbh", "dbh_cm", "dbh_m", "dbh_mm"],
             "non_null": true,
             "is_numeric": true,
-            "range": [0, 300]
+            "range": [0, 200]
         },
         "decay": {
             "alternatives": ["decay_numeric", "decay"],

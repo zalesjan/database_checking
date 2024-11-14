@@ -133,23 +133,36 @@ def composed_site_id_to_all():
                 t.wildcard_id = s.wildcard_id; 
                 """
         do_query(composed_site_id_update_in_all_from_sites)
-        
+ 
 def do_query(query):
     conn = get_db_connection()
     if conn is None:
-        return  # If connection fails, do nothing
+        st.error("Database connection failed.")
+        return None  # If connection fails, return None
 
     try:
-        cur = conn.cursor()    
+        # Execute query and fetch results
+        cur = conn.cursor()
         cur.execute(query)
-        conn.commit()
-    
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-    finally:
-            cur.close()
-            conn.close()
+        if "dbh < d.standing_alive_threshold" in query:
+            # Fetch all results
+            rows = cur.fetchall()
+            columns = [desc[0] for desc in cur.description]  # Get column names
 
+            # Create a DataFrame for easy display
+            result_df = pd.DataFrame(rows, columns=columns)
+            conn.commit()
+            return result_df  # Return the DataFrame with results
+        else:
+            conn.commit()
+
+    except Exception as e:
+        st.error(f"An error occurred: {str(e)}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+        
 # Authenticate with Google Sheets API
 def google_sheets_auth():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]

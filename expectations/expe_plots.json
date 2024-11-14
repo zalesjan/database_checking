@@ -1,5 +1,9 @@
-{
-    "expected_columns": {
+{ 
+  "expected_columns": {
+      "composed_site_id":  {
+        "alternatives": ["composed_site_id", "composed_id"],
+        "non_null": true
+      },  
       "site_name": {
         "alternatives": ["site_name", "sitename", "site-name", "location_name"],
         "non_null": true
@@ -59,6 +63,7 @@
       }
     },
     "required_non_null_columns": [
+      "composed_site_id",
       "site_id",
       "site_name",
       "wildcard_sub_id",
