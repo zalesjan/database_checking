@@ -29,7 +29,7 @@ def extra_columns(df, core_and_alternative_columns, ordered_core_attributes):
         write_and_log("No extra columns found.")
     return extra_columns if extra_columns else []
 
-def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns):
+def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, ignored_columns=None):
     """
     Prepares the DataFrame to merge core data with a JSONB column `extended_attributes` for COPY command.
     
@@ -44,6 +44,11 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns):
     # Step 1: Create a copy of the DataFrame to avoid slice issues
     df_for_copy = df.copy()
     
+    #Step 2: Remove columns to ignore from both core and extra columns
+    if ignored_columns:
+        ordered_core_attributes = [col for col in ordered_core_attributes if col not in ignored_columns]
+        extra_columns = [col for col in extra_columns if col not in ignored_columns]
+
     # Keep only core attributes and extra columns
     df_for_copy = df[ordered_core_attributes].copy()
     
@@ -53,6 +58,44 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns):
         df_for_copy = df_for_copy.copy()
 
     return df_for_copy
+
+def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
+    """
+    Determines the core attributes and constructs the COPY command including extended attributes.
+    
+    Args:
+        file_path (str): Path to the file being processed.
+        df_columns (list): List of columns in the DataFrame.
+        extra_columns (list): List of extra columns to be stored as JSONB.
+        table_name (str): Name of the table to insert data into.
+        ignored_columns (list, optional): List of columns to be ignored from the DataFrame.
+    
+    Returns:
+        copy_command (str): The COPY command for inserting data.
+    """
+    if ignored_columns is None:
+        ignored_columns = []
+
+    # Filter out ignored columns
+    filtered_columns = [col for col in df_columns if col not in ignored_columns]
+
+    # Map the filtered DataFrame columns to core attributes
+    core_attributes = [col for col in filtered_columns if col not in extra_columns]
+    
+    if extra_columns:
+        # Join core columns into a comma-separated string
+        columns_string = ", ".join(core_attributes + ["extended_attributes"])
+    else:
+        columns_string = ", ".join(core_attributes)
+
+    # Create the COPY command to include core columns and JSONB `extended_attributes`
+    copy_command = f"""
+    COPY public.{table_name} 
+    ({columns_string}) 
+    FROM STDIN WITH DELIMITER E'\t' CSV HEADER NULL '\\N';"""
+    
+    write_and_log(f'copy_command: {copy_command}')
+    return copy_command
 
 def determine_copy_command(file_path, df_columns, extra_columns, table_name):
     """

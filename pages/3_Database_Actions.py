@@ -32,11 +32,23 @@ if user_password == PASSWORD:
         #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
         table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file.name, df.columns)
         extra_columns = extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
+        # Checkbox to decide whether to ignore some columns
         
+        # Option to ignore columns
+        ignore_columns_option = st.checkbox("Do you want to ignore some columns?")
+        ignored_columns = []
+        if ignore_columns_option:
+            # Dynamically generate checkboxes for each column
+            ignored_columns = st.multiselect("Columns to ignore", options=df.columns)
+
+        # Display the ignored columns (for confirmation)
+        if ignored_columns:
+            st.write("You chose to ignore these columns:", ignored_columns)
+
         # COPY TO DATABASE
         if st.button("Copy Data to Database"):
             write_and_log(f'attempting to upload: {uploaded_file}')
-            load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns)
+            load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns)
             write_and_log("Data copy to the database is at its end.")
 
     # HELPER FUNCTIONS (set the record_id values, moving to tree)
