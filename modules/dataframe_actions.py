@@ -22,11 +22,13 @@ def df_from_uploaded_file(uploaded_file):
 def extra_columns(df, core_and_alternative_columns, ordered_core_attributes):
     # Extract expected column names (main attributes, not alternatives)
     extra_columns = [col for col in df.columns if col not in core_and_alternative_columns]
-    write_and_log(f"Core columns found: {ordered_core_attributes}")
+    st.warning("These columns for basic (mandatory) attributes were found:")
+    st.write(f"{ordered_core_attributes}")
     if extra_columns:
-        write_and_log(f"Extra columns found: {extra_columns}")
+        st.warning(f"These extended attributes columns were found")
+        st.write(f"{extra_columns}")
     else:
-        write_and_log("No extra columns found.")
+        st.write("No extra columns found.")
     return extra_columns if extra_columns else []
 
 def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, ignored_columns=None):

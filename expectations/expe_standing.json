@@ -65,10 +65,6 @@
             "non_null": true,
             "is_date": true
         },
-        "species_code": {
-            "alternatives": ["species_code", "speciesid", "species-code", "speciesidentifier"],
-            "specific_characters": "^.{6}$"
-        },
         "full_scientific": {
             "alternatives": ["full_scientific", "tree_species"]
         },
