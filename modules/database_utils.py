@@ -15,7 +15,7 @@ update_unique_plot_id_3stg ="""
         SET unique_plot_id = p.record_id
         FROM plots p
         WHERE 
-            t.wildcard_id = p.wildcard_id
+            t.composed_site_id = p.composed_site_id
             AND t.inventory_year = p.inventory_year
             AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
             ;
@@ -31,9 +31,9 @@ update_design_id_in_plots ="""NOT FINISHED . how to do a condition that inventor
             ;
         """
 move_data_to_tree = """
-        INSERT INTO public.tree (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_sub_id)
+        INSERT INTO public.tree (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_sub_id, circle_no)
         SELECT 
-            composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_sub_id
+            composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_sub_id, circle_no
         FROM
             public.tree_staging;
         """
