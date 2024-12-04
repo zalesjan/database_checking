@@ -14,6 +14,9 @@
         "spi_id": {
             "alternatives": ["spi_id", "spiid", "spi-id", "sp_i_id"]
         },
+        "circle_no": {
+            "alternatives": ["circle_no", "circle_number"]
+        },
         "tree_id": {
             "alternatives": ["tree_id", "treeid", "tree-id", "treeidentifier"],
             "non_null": true,
