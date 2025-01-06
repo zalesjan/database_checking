@@ -18,6 +18,42 @@
       "wildcard_sub_id": {
         "alternatives": ["wildcard_sub_id", "wildcardsubid", "wildcard-sub-id", "wildcard_sub_id", "wildcard_id"],
         "non_null": true
+      },
+      "his": {
+        "alternatives": ["his", "his_selected"],
+        "non_null": true
+      },
+      "his_lidar": {
+        "alternatives": ["his_lidar"],
+        "non_null": true
+      },
+      "soil_water": {
+        "alternatives": ["soil_water", "water"],
+        "non_null": true
+      },
+      "soil_nutrient": {
+        "alternatives": ["soil_nutrient"],
+        "non_null": true
+      },
+      "forest_type": {
+        "alternatives": ["forest_type", "his_forest_type"],
+        "non_null": true
+      },
+      "eea_fortype": {
+        "alternatives": ["eea_forest_type", "eea"],
+        "non_null": true
+      },
+      "year_reserve": {
+        "alternatives": ["year_reserve", "reserve_year"],
+        "non_null": true
+      },
+      "year_abandonment": {
+        "alternatives": ["year_abandonment", "abandonment"],
+        "non_null": true
+      },
+      "biodiversity": {
+        "alternatives": ["biodiversity", "any_biodiv"],
+        "non_null": true
       }
     },
     "required_non_null_columns": [

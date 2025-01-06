@@ -26,7 +26,7 @@
         "value_description": {
             "alternatives": ["value_description", "desciption"]
         },
-        "field_desciption": {
+        "field_description": {
             "alternatives": ["field_desciption"]
         }
         

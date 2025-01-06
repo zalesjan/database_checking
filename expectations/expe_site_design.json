@@ -3,10 +3,6 @@
       "composed_site_id":  {
         "alternatives": ["composed_site_id", "composed_id"],
         "non_null": true
-      }, 
-      "site_id": {
-        "alternatives": ["site_id", "siteid", "site-id", "site_id"],
-        "non_null": true
       },
       "site_name": {
         "alternatives": ["site_name", "sitename", "site-name", "site_name"],
@@ -14,10 +10,6 @@
       },
       "institute": {
         "alternatives": ["institute", "institution", "institute_name", "institute"]
-      },
-      "wildcard_sub_id": {
-        "alternatives": ["wildcard_sub_id", "wildcardsubid", "wildcard-sub-id", "wildcard_sub_id"],
-        "non_null": true
       },
       "inventory_year": {
         "alternatives": ["inventory_year", "inventoryyear", "inventory-year", "inv_year"],
@@ -28,6 +20,9 @@
       "inventory_type": {
         "alternatives": ["inventory_type", "inventorytype", "inventory-type", "inv_type"],
         "allowed_values": ["SPI", "LPI", "C", "D", "E"]
+      },
+      "inventory_id": {
+        "alternatives": ["inventory_id"]
       },
       "no_plots": {
         "alternatives": ["no_plots", "noplots", "no-plots", "number_of_plots"],

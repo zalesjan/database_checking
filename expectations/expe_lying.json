@@ -97,6 +97,10 @@
       "wildcard_sub_id": {
           "alternatives": ["wildcard_sub_id", "wildcard_id", "sub_id"],
           "non_null": true
+      },
+      "volume": {
+          "alternatives": ["volume"],
+          "non_null": true
       }
     },
     "required_non_null_columns": [

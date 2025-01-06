@@ -36,6 +36,9 @@
             "is_numeric": true,
             "range": [1900, "current_year"]
         },
+        "inventory_id": {
+          "alternatives": ["inventory_id"]
+        },
         "consistent_id": {
             "alternatives": ["consistent_id", "consistentid", "consistent-id", "consistency_id"],
             "non_null": true,

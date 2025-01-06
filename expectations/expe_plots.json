@@ -28,7 +28,7 @@
         "range": [0, 120]
       },
       "circle_radius": {
-        "alternatives": ["circle_radius", "circleradius", "circle-radius", "radius_circle", "circle_r"],
+        "alternatives": ["circle_radius", "circleradius", "circle-radius", "radius_circle", "circle_r", "circle_rad"],
         "is_numeric": true,
         "range": [0, 60]
       },
@@ -45,6 +45,9 @@
         "non_null": true,
         "is_numeric": true,
         "range": [1900, "current_year"]
+      },
+      "inventory_id": {
+        "alternatives": ["inventory_id"]
       },
       "consistent_id_standing": {
         "alternatives": ["consistent_id_standing", "consistentid_standing", "consistent-id-standing", "standing_consistent_id", "standing_id"],
