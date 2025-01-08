@@ -28,8 +28,13 @@
         },
         "field_description": {
             "alternatives": ["field_desciption"]
+        },
+        "methods": {
+            "alternatives": ["methods"]
+        },
+        "parameter": {
+            "alternatives": ["parameter"]
         }
-        
     },
     "required_non_null_columns": [
         "institute",

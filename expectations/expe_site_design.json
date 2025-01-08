@@ -8,6 +8,10 @@
         "alternatives": ["site_name", "sitename", "site-name", "site_name"],
         "non_null": true
       },
+      "site_id": {
+        "alternatives": ["site_id", "siteid", "site-id", "site_id"],
+        "non_null": true
+      },
       "institute": {
         "alternatives": ["institute", "institution", "institute_name", "institute"]
       },
