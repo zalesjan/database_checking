@@ -19,7 +19,34 @@ def df_from_uploaded_file(uploaded_file):
     st.write("Data Preview:", df.head())
     return df, uploaded_file_path
 
-def extra_columns(df, core_and_alternative_columns, ordered_core_attributes):
+def df_from_detected_file(file_path):
+    # Ensure the temporary directory exists
+    temp_dir = "temp_dir"
+    os.makedirs(temp_dir, exist_ok=True)
+
+    # Load the file into a DataFrame
+    df = pd.read_csv(file_path, delimiter='\t')
+    return df
+
+def etl_process_df(uploaded_file_name, df_columns, df):
+    #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
+    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file_name, df_columns)
+    extra_columns = extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
+    
+    # Option to ignore columns
+    ignore_columns_option = st.checkbox("Do you want to ignore some columns?")
+    ignored_columns = []
+    if ignore_columns_option:
+        # Dynamically generate checkboxes for each column
+        ignored_columns = st.multiselect("Columns to ignore", options=df.columns)
+
+    # Display the ignored columns (for confirmation)
+    if ignored_columns:
+        st.write("You chose to ignore these columns:", ignored_columns)
+
+    return table_name, ordered_core_attributes, extra_columns, ignored_columns, config
+
+def find_extra_columns(df, core_and_alternative_columns, ordered_core_attributes):
     # Extract expected column names (main attributes, not alternatives)
     extra_columns = [col for col in df.columns if col not in core_and_alternative_columns]
     st.warning("These columns for basic (mandatory) attributes were found:")
@@ -60,6 +87,45 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, ignor
         df_for_copy = df_for_copy.copy()
 
     return df_for_copy
+
+
+def determine_copy_command_for_ecology_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
+    """
+    Determines the core attributes and constructs the COPY command including extended attributes.
+    
+    Args:
+        file_path (str): Path to the file being processed.
+        df_columns (list): List of columns in the DataFrame.
+        extra_columns (list): List of extra columns to be stored as JSONB.
+        table_name (str): Name of the table to insert data into.
+        ignored_columns (list, optional): List of columns to be ignored from the DataFrame.
+    
+    Returns:
+        copy_command (str): The COPY command for inserting data.
+    """
+    if ignored_columns is None:
+        ignored_columns = []
+
+    # Filter out ignored columns
+    filtered_columns = [col for col in df_columns if col not in ignored_columns]
+
+    # Map the filtered DataFrame columns to core attributes
+    core_attributes = [col for col in filtered_columns if col not in extra_columns]
+    
+    if extra_columns:
+        # Join core columns into a comma-separated string
+        columns_string = ", ".join(core_attributes + ["extended_attributes"])
+    else:
+        columns_string = ", ".join(core_attributes)
+
+    # Create the COPY command to include core columns and JSONB `extended_attributes`
+    copy_command = f"""
+    UPDATE public.{table_name} 
+    ({columns_string}) 
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) NULL '\\N';"""
+    
+    write_and_log(f'copy_command: {copy_command}')
+    return copy_command
 
 def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
     """

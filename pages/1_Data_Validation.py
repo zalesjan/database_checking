@@ -1,6 +1,6 @@
 import streamlit as st
 from modules.validate_files_module import value_counts_for_each_distinct_value, distinct_values_with_counts, validate_file
-from modules.dataframe_actions import determine_configs, df_from_uploaded_file, extra_columns
+from modules.dataframe_actions import etl_process_df, determine_configs, df_from_uploaded_file, find_extra_columns
 from modules.logs import write_and_log
 import logging
     
@@ -15,15 +15,13 @@ logging.info('Logging setup is complete.')
 st.title("Data Consistency and Validation")
 st.markdown("Here you can check your files and validate the data (columns, intervals, allowed values).\nTo start, upload the file that you want to check.")
 
-# FILE UPLOAD
+# FILE UPLOAD and ETL
 uploaded_file = st.file_uploader("Upload a file to be checked", type=["csv", "txt"])
 if uploaded_file:
     df, uploaded_file_path = df_from_uploaded_file(uploaded_file)
 
-    # GET CONFIGS AND COLUMNS based on file name and extra columns
-    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file.name, df.columns)
-    extra_columns = extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
-
+    table_name, ordered_core_attributes, extra_columns, ignored_columns, config = etl_process_df(uploaded_file.name, df.columns, df)
+    
     # VALIDATION
     # PRESENCE OF KEY COLUMNS AND DATA (FORMAT) VALIDATION
     if st.button(f'**CHECK PRESENCE OF KEY COLUMNS AND DATA FORMAT RESTRICTIONS**'):

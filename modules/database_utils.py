@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 import json
 from modules.logs import write_and_log
-from modules.dataframe_actions import determine_copy_command_with_ignore, prepare_dataframe_for_copy, determine_copy_command
+from modules.dataframe_actions import determine_copy_command_for_ecology_with_ignore, determine_copy_command_with_ignore, prepare_dataframe_for_copy, determine_copy_command
 
 #queries used in helper operations
 get_wildcard_db_id = "SELECT composed_site_id, record_id FROM public.sites"
@@ -64,7 +64,7 @@ def site_password():
         st.warning("Please enter the correct password to proceed.")
 
 def get_db_connection():
-    #["postgres"], ["vukoz"]
+    #["postgres_EuFoRIa_trees_db"], ["vukoz"]
     role = "postgres"
     try:
         conn = psycopg2.connect(
@@ -121,6 +121,52 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
         cur.close()
         conn.close()
 
+def load_ecological_data_with_copy_command(df, file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns):
+    """
+    Load data using the constructed COPY command, including JSONB data.
+    
+    Args:
+        df (pd.DataFrame): DataFrame with core and extra attributes.
+        file_path (str): Path to the file being processed.
+        table_name (str): Name of the target database table.
+        extra_columns (list): List of columns considered as extra attributes.
+
+    Returns:
+        None
+    """
+    copy_command = determine_copy_command_for_ecology_with_ignore(file_path, ordered_core_attributes, extra_columns, table_name, ignored_columns)
+    
+    # Prepare the DataFrame to include `extended_attributes`
+    df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, ignored_columns)
+    st.write(f'DF to upload:', df_ready.head())
+    # Connect to the database and execute the COPY command
+    conn = get_db_connection()
+    if conn is None:
+        return
+
+    try:
+        cur = conn.cursor()
+        
+        # Use COPY command to insert the data
+        copy_file_like_object = io.StringIO(df_ready.to_csv(index=False, sep='\t', header=True, na_rep='\\N'))
+        with open('output.csv', 'w', encoding='utf-8') as file:
+            file.write(copy_file_like_object.getvalue())
+        """    
+        #cur.copy_expert(copy_command, copy_file_like_object)
+        cur.execute(copy_command, df_ready)
+        
+        conn.commit()
+        print(f"Data successfully loaded into {table_name}")
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Error inserting data: {str(e)}")
+        """
+    finally:
+        cur.close()
+        conn.close()
+        
+
 def composed_site_id_to_all():
     tables_for_composed_site_id_to_all = ["tree_staging", "site_design", "plots"]
     for table_name in tables_for_composed_site_id_to_all:
@@ -162,7 +208,8 @@ def do_query(query):
     finally:
         cur.close()
         conn.close()
-        
+
+"""
 # Authenticate with Google Sheets API
 def google_sheets_auth():
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -203,3 +250,5 @@ def wildcard_db_id(client):
     sheet.update(cell_range, [[val] for val in sheet_data["WILDCARD_DB_ID"].tolist()])
 
     st.success("Google Sheets updated successfully!")
+
+"""

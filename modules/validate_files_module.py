@@ -296,7 +296,7 @@ def file_comparison(file_1, file_2):
     df2.columns = df2.columns.str.lower()
     
     # Define the join columns
-    join_columns = ["site_id", "wildcard_id", "spi_id", "inventory_year","full_scientific", "life"]
+    join_columns = ["wildcard_sub_id", "spi_id", "circle_no"]
 
     # Check if all join columns are present in both DataFrames
     missing_columns_df1 = [col for col in join_columns if col not in df1.columns]
