@@ -8,15 +8,21 @@ import os
 import logging
 from modules.logs import write_and_log
 from modules.database_utils import do_query
-
 import streamlit as st
+
+logging.basicConfig(
+    filename='logs.log',  # Specify your log file name
+    level=logging.INFO,  # Set the logging level to INFO or WARNING
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Define the format of log messages
+)
+logging.info('Logging setup is complete.')
 
 # Email configuration
 EMAIL_USER = st.secrets['email']['EMAIL_USER']
 EMAIL_PASSWORD = st.secrets['email']['EMAIL_PASSWORD']
 
 def validate_file(df, config, file_name):
-    write_and_log(f'validating file: {file_name}')
+    st.header(f'validating file: {file_name}')
     expected_columns = config.get("expected_columns", {})
     validation_results = {}
     columns_for_exploration = set()
@@ -141,7 +147,7 @@ def value_counts_for_each_distinct_value(df, columns_for_exploration):
             write_and_log(f" - {value}: {count}")
 
 def plausibility_test(df):
-    print("Before filtering or grouping, columns are:", df.head())
+    #print("Before filtering or grouping, columns are:", df.head())
     dbh_reduction = None
     position_reversal = None
     decay_inconsistency = None
@@ -149,15 +155,15 @@ def plausibility_test(df):
     life_status_reversal = None
 
     # Initialize results dictionary for storing integrity issues
-    integrity_issues = {
-        'dbh_reduction': None,
-        'position_reversal': None,
-        'life_status_reversal': None,
-        'integrity_reversal': None,
-        'decay_inconsistency': None
-    }
+    #integrity_issues = {
+    #    'dbh_reduction': None,
+    #    'position_reversal': None,
+    #    'life_status_reversal': None,
+    #    'integrity_reversal': None,
+    #    'decay_inconsistency': None}
+    #   integrity_issues = {}
+    
     #check_dbh_reduction(df): reduction by more than 2.5 cm or 10%
-    integrity_issues = {}
     if 'dbh' in df.columns and 'previous_dbh' in df.columns:
         life_filter = df['life'] == "A"  
         dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
@@ -175,6 +181,7 @@ def plausibility_test(df):
         where t.dbh < d.standing_alive_threshold
         """
         dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold)
+        
         if dbh_smaller_than_threshold is not None:
             st.dataframe(dbh_smaller_than_threshold)  # Display the result as a DataFrame
         else:
@@ -214,7 +221,7 @@ def check_species_change(df, xpi):
     df['species_change'] = species_change
 
     # Filter rows where there is a species change and create an integrity issue log
-    species_integrity_issues = df[df['species_change'] == True][['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year', 'full_scientific']]
+    species_integrity_issues = df[df['species_change'] == True][['site_id', 'composed_site_id', xpi, 'tree_id', 'inventory_year', 'full_scientific']]
     print(f"{species_integrity_issues}")
     return species_integrity_issues
 
@@ -256,6 +263,14 @@ def send_email(results, email, xpi):
     yag = yagmail.SMTP(EMAIL_USER, EMAIL_PASSWORD)
     subject = f"Integrity Test Results for plots of type: {xpi}"
     body = "Please find the results attached."
+   
+    json_file = save_json (results)
+
+    # Send email with the JSON file as an attachment
+    yag.send(to=email, subject=subject, contents=[body, json_file])
+
+# Function to save results as json
+def save_json(results):
 
     # Define the file path for saving the JSON file
     temp_dir = "temp_dir"
@@ -269,11 +284,8 @@ def send_email(results, email, xpi):
     with open(json_file, 'w') as f:
         json.dump(processed_results, f, default=str, indent=4)
 
-    # Send email with the JSON file as an attachment
-    yag.send(to=email, subject=subject, contents=[body, json_file])
-
 # Run tests and send the results
-def run_tests_in_background(df_integrity, email, df, xpi):
+def run_tests_in_background(df_integrity, email, df, xpi, page):
     results = {}
     print(f"Running tests in background")
     try:
@@ -281,8 +293,13 @@ def run_tests_in_background(df_integrity, email, df, xpi):
         results['dbh_reduction'], results['position_reversal'], results['life_status_reversal'], results['integrity_reversal'], results['decay_inconsistency'] = plausibility_test(df_integrity)
         results['species'] = check_species_change(df, xpi)
         results['missing_in_census'] = check_missing_in_census(df, xpi)
+
         print(f'Tests was run in the background. Results will be sent to your email.')
-        send_email(results, email, xpi)  # Send results via email
+        
+        if page == 'onepager':
+            save_json(results)
+        if page == 'plausibility_only':
+            send_email(results, email, xpi)
     except Exception as e:
         print(f"Error running plausibility_test: {e}")
         

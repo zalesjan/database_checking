@@ -48,13 +48,11 @@ if st.button("Run the validation") and uploaded_files:
         # PLAUSIBILITY TEST
         if table_name == "tree_staging": 
             df_integrity_lpi_id, df_integrity_spi_id = dataframe_for_tree_integrity(df)
-            # Get user email input
-            email = st.text_input("Enter your email to receive the results:", key="email")
+            email = None
 
-            if st.button("Run All Plausibility Tests"):
-                # Run tests in background
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    executor.submit(run_tests_in_background, df_integrity_lpi_id, email, df, xpi = 'lpi_id')
-                    executor.submit(run_tests_in_background, df_integrity_spi_id, email, df, xpi = 'spi_id')
-                write_and_log(f'Tests are running in the background. Results will be sent to your email: {email}.')
-            
+            # Run tests in background
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                executor.submit(run_tests_in_background, df_integrity_lpi_id, email, df, xpi = 'lpi_id', page = 'onepager')
+                executor.submit(run_tests_in_background, df_integrity_spi_id, email, df, xpi = 'spi_id', page = 'onepager')
+            write_and_log(f'Tests were run in the background. Results will be saved in JSON file.')
+        

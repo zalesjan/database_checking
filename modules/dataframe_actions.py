@@ -16,6 +16,7 @@ def df_from_uploaded_file(uploaded_file):
 
     # Load the file into a DataFrame
     df = pd.read_csv(uploaded_file, delimiter='\t')
+    st.header(f'{uploaded_file.name}')
     st.write("Data Preview:", df.head())
     return df, uploaded_file_path
 
@@ -29,20 +30,22 @@ def df_from_detected_file(file_path):
     return df
 
 def etl_process_df(uploaded_file_name, df_columns, df):
+    unique_key_prefix = f"{uploaded_file_name}_"
+
     #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
     table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file_name, df_columns)
-    extra_columns = extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
+    extra_columns = find_extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
     
     # Option to ignore columns
-    ignore_columns_option = st.checkbox("Do you want to ignore some columns?")
+    ignore_columns_option = st.checkbox("Do you want to ignore some columns?", key=f"{unique_key_prefix}ignore_columns")
     ignored_columns = []
     if ignore_columns_option:
         # Dynamically generate checkboxes for each column
-        ignored_columns = st.multiselect("Columns to ignore", options=df.columns)
+        ignored_columns = st.multiselect("Columns to ignore", options=df.columns,  key=f"{unique_key_prefix}ignore_columns")
 
     # Display the ignored columns (for confirmation)
     if ignored_columns:
-        st.write("You chose to ignore these columns:", ignored_columns)
+        st.write("You chose to ignore these columns:", ignored_columns, key=f"{unique_key_prefix}ignore_columns")
 
     return table_name, ordered_core_attributes, extra_columns, ignored_columns, config
 
