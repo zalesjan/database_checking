@@ -147,13 +147,6 @@ def value_counts_for_each_distinct_value(df, columns_for_exploration):
             write_and_log(f" - {value}: {count}")
 
 def plausibility_test(df):
-    #print("Before filtering or grouping, columns are:", df.head())
-    dbh_reduction = None
-    position_reversal = None
-    decay_inconsistency = None
-    integrity_reversal = None
-    life_status_reversal = None
-
     # Initialize results dictionary for storing integrity issues
     #integrity_issues = {
     #    'dbh_reduction': None,
@@ -163,38 +156,51 @@ def plausibility_test(df):
     #    'decay_inconsistency': None}
     #   integrity_issues = {}
     
-    #check_dbh_reduction(df): reduction by more than 2.5 cm or 10%
-    if 'dbh' in df.columns and 'previous_dbh' in df.columns:
+    # Initialize empty results
+    dbh_reduction = None
+    position_reversal = None
+    decay_inconsistency = None
+    integrity_reversal = None
+    life_status_reversal = None
+
+    # Define required columns dynamically based on availability
+    base_columns = ['site_id', 'spi_id', 'tree_id', 'inventory_year']
+
+    # Include `composed_site_id` and `wildcard_sub_id` if they exist in df
+    if 'composed_site_id' in df.columns:
+        base_columns.append('composed_site_id')
+    if 'wildcard_sub_id' in df.columns:
+        base_columns.append('wildcard_sub_id')
+
+    # Check DBH Reduction: Reduction by more than 2.5 cm or 10%
+    if {'dbh', 'previous_dbh', 'life'}.issubset(df.columns):
         life_filter = df['life'] == "A"  
         dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
-        dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year']]
-        #integrity_issues['dbh_reduction'] = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+        dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][base_columns]
 
-    #def check_position_change(df): Position changes from L to S
-    position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
-    position_reversal = df[position_criteria][['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year']]
-    #integrity_issues['position_reversal'] = df[position_criteria][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    # Check Position Change: Position changes from L to S
+    if {'previous_position', 'position'}.issubset(df.columns):
+        position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
+        position_reversal = df[position_criteria][base_columns]
 
-    #def check_life_status_change(df): Life status changes from D to A
-    life_criteria = (df['previous_life'] == 'D') & (df['life'] == 'A')
-    life_status_reversal = df[life_criteria][['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year']]
-    #integrity_issues['life_status_reversal'] = df[life_criteria][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    # Check Life Status Change: Life status changes from D to A
+    if {'previous_life', 'life'}.issubset(df.columns):
+        life_criteria = (df['previous_life'] == 'D') & (df['life'] == 'A')
+        life_status_reversal = df[life_criteria][base_columns]
 
-    #def check_integrity_change(df): Integrity changes from F to C
-    death_filter = df['life'] == "D" 
-    integrity_criteria = (df['previous_integrity'] == 'F') & (df['integrity'] == 'C')
-    integrity_reversal = df[integrity_criteria & death_filter & df['previous_integrity'].notna()][['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year']]
-    #integrity_issues['integrity_reversal'] = df[integrity_criteria & death_filter & df['previous_integrity'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
+    # Check Integrity Change: Integrity changes from F to C
+    if {'previous_integrity', 'integrity', 'life'}.issubset(df.columns):
+        death_filter = df['life'] == "D"
+        integrity_criteria = (df['previous_integrity'] == 'F') & (df['integrity'] == 'C')
+        integrity_reversal = df[integrity_criteria & death_filter & df['previous_integrity'].notna()][base_columns]
 
-    #def check_decay(df,): decay values either increase or stay the same, from 0 (no decay) to 5 (complete decay)
-    decay_criteria = df['decay'] < df['previous_decay']
-    decay_inconsistency = df[decay_criteria & df['previous_decay'].notna()][['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year']]
-    #integrity_issues['decay_inconsistency'] = df[decay_criteria & df['previous_decay'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
-    
-    #integrity_issues = dbh_reduction, position_reversal, life_status_reversal, integrity_reversal, decay_inconsistency
-    #return integrity_issues
-    
+    # Check Decay: Decay values should increase or stay the same (0 = no decay, 5 = complete decay)
+    if {'decay', 'previous_decay'}.issubset(df.columns):
+        decay_criteria = df['decay'] < df['previous_decay']
+        decay_inconsistency = df[decay_criteria & df['previous_decay'].notna()][base_columns]
+
     return dbh_reduction, position_reversal, life_status_reversal, integrity_reversal, decay_inconsistency
+
 
 #check dbh for smaller than threshold
 def tree_smaller_than_threshold():
