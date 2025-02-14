@@ -230,34 +230,46 @@ def determine_order(file):
 
 def dataframe_for_tree_integrity(df):
     # Define the columns needed for the integrity checks
-    columns_to_check = ['site_id', 'composed_site_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
+    columns_to_check = ['site_id', 'wildcard_sub_id','composed_site_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 
+                        'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
     
     # Filter only existing columns in df
-    columns_to_check = [col for col in columns_to_check if col in df.columns]
+    existing_columns = [col for col in columns_to_check if col in df.columns]
     
     # Create a filtered DataFrame for integrity checks
-    df_for_integrity_checks = df[columns_to_check]
+    df_for_integrity_checks = df[existing_columns].copy()
 
     # Step 1: Sort the data to ensure correct chronological order within groups
-    df_integrity_lpi_id = df_for_integrity_checks.sort_values(by=['site_id', 'composed_site_id', 'lpi_id', 'tree_id', 'inventory_year'])
-    df_integrity_spi_id = df_for_integrity_checks.sort_values(by=['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year'])
+    df_integrity_lpi_id = df_for_integrity_checks.sort_values(
+        by=[col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'lpi_id', 'tree_id', 'inventory_year'] if col in df_for_integrity_checks.columns]
+    )
+    df_integrity_spi_id = df_for_integrity_checks.sort_values(
+        by=[col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year'] if col in df_for_integrity_checks.columns]
+    )
 
     # Step 2: Use groupby (without inventory_year) and create previous values for each column
-    grouped_lpi_id = df_integrity_lpi_id.groupby(['site_id', 'composed_site_id', 'spi_id', 'tree_id'])
-    grouped_spi_id = df_integrity_spi_id.groupby(['site_id', 'composed_site_id', 'spi_id', 'tree_id'])
-
+    grouped_lpi_id = df_integrity_lpi_id.groupby(
+        [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'lpi_id', 'tree_id'] if col in df_integrity_lpi_id.columns]
+    )
+    grouped_spi_id = df_integrity_spi_id.groupby(
+        [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'tree_id'] if col in df_integrity_spi_id.columns]
+    )
 
     # Create previous counterparts for each column and add them to the DataFrame
-    for column in columns_to_check:
+    for column in existing_columns:
         if column != 'inventory_year':  # Skip inventory_year for the shift
             df_integrity_lpi_id[f'previous_{column}'] = grouped_lpi_id[column].shift(1)
             df_integrity_spi_id[f'previous_{column}'] = grouped_spi_id[column].shift(1)
 
+    # Handle missing values (optional: fill with NaN, None, or a default value)
+    #df_integrity_lpi_id.fillna(value={'previous_' + col: None for col in existing_columns if col != 'inventory_year'}, inplace=True)
+    #df_integrity_spi_id.fillna(value={'previous_' + col: None for col in existing_columns if col != 'inventory_year'}, inplace=True)
 
-    # Now df_integrity contains both current and previous values for the relevant columns
+    # Debugging output
     print("DataFrame with current and previous values:")
-    print(df_integrity_lpi_id)  # Print the first few rows for inspection
-    print(df_integrity_spi_id)  # Print the first few rows for inspection
+    print(df_integrity_lpi_id.head())  # Print the first few rows for inspection
+    print(df_integrity_spi_id.head())  # Print the first few rows for inspection
 
     return df_integrity_lpi_id, df_integrity_spi_id
+
 
