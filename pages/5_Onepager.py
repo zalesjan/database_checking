@@ -2,7 +2,7 @@ import streamlit as st
 from modules.logs import write_and_log
 from modules.validate_files_module import run_parallel_plausibility_tests, value_counts_for_each_distinct_value, distinct_values_with_counts, validate_file, tree_smaller_than_threshold
 from modules.dataframe_actions import determine_order, etl_process_df, df_from_uploaded_file, dataframe_for_tree_integrity
-from modules.database_utils import load_data_with_copy_command, password_check, do_query, move_data_to_tree, tree_staging_id, plots_id
+from modules.database_utils import load_data_with_copy_command, password_check, do_query, move_data_to_tree, tree_staging_id, plots_id, site_design_id
 
 # Page Name
 st.title("5_Onepager")
@@ -47,8 +47,6 @@ if password_check():
                 # PLAUSIBILITY TEST
                 if table_name == "tree_staging": 
                     df_integrity_lpi_id, df_integrity_spi_id = dataframe_for_tree_integrity(df)
-
-                    # Run tests in background
                     run_parallel_plausibility_tests(df_integrity_lpi_id, df_integrity_spi_id, df, file)
 
                 # COPY TO DATABASE 
@@ -65,18 +63,12 @@ if password_check():
                 write_and_log(f"Data copy of {file.name} to the database is complete.")
                 if table_name == "sites":
                     institute = df["institute"]
-                    
-                if table_name not in ["sites", "cwd", "metadata"]: 
-                    if table_name == "tree_staging":
-                        function_name = tree_staging_id
-                    if table_name == "plots":
-                        function_name = plots_id    
-                        #function_name = f"{table_name}_id"  # Construct function name 
-                        do_query(function_name)
-                    #write it like in DB utils for helper operations / map it to fctions, 
-                    # tree staging has all 3
-
+                if table_name == ["site_design"]:
+                    do_query(site_design_id)
+                if table_name == "plots":
+                        do_query(plots_id)   
                 if table_name == "tree_staging":
+                    do_query(tree_staging_id)
                     do_query(move_data_to_tree)
                     tree_smaller_than_threshold() 
                     write_and_log(f"Help functions of {file.name} is complete.")

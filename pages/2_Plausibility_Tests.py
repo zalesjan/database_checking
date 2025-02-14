@@ -13,7 +13,7 @@ if uploaded_file:
 
     #GET CONFIGS
     table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping = determine_configs(uploaded_file.name, df.columns)
-    email = None
+    
     # PLAUSIBILITY TEST
     if table_name == "tree_staging": 
         df_integrity_lpi_id, df_integrity_spi_id = dataframe_for_tree_integrity(df)

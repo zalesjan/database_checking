@@ -34,7 +34,7 @@ plots_id =f"""
 			AND p.circle_no = d.circle_no
 			and d.composed_site_id like %s;
         """
-site_design =f"""
+site_design_id =f"""
         UPDATE site_design d
 		SET unique_site_id = s.record_id
 		FROM sites s
