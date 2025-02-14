@@ -1,5 +1,9 @@
 {
     "expected_columns": {
+      "wildcard_sub_id": {
+        "alternatives": ["wildcard_sub_id", "wildcard_id", "wildcardsubid", "wildcard-sub-id", "sub_id_wildcard"],
+        "non_null": true
+      },
       "composed_site_id":  {
         "alternatives": ["composed_site_id", "composed_id"],
         "non_null": true

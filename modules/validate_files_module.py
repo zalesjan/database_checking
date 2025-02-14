@@ -170,23 +170,6 @@ def plausibility_test(df):
         dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year']]
         #integrity_issues['dbh_reduction'] = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][['site_id', 'wildcard_id', 'spi_id', 'tree_id', 'inventory_year']]
 
-        #check dbh for smaller than threshold
-        dbh_smaller_than_threshold = """
-        SELECT t.composed_site_id, t.record_id, t.dbh, d.standing_alive_threshold 
-        FROM public.tree t
-        JOIN public.plots p
-            ON unique_plot_id = p.record_id
-        JOIN site_design d
-            ON unique_site_design_id = d.record_id
-        where t.dbh < d.standing_alive_threshold
-        """
-        dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold)
-        
-        if dbh_smaller_than_threshold is not None:
-            st.dataframe(dbh_smaller_than_threshold)  # Display the result as a DataFrame
-        else:
-            st.write("No results to display or an error occurred.")
-
     #def check_position_change(df): Position changes from L to S
     position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
     position_reversal = df[position_criteria][['site_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year']]
@@ -212,6 +195,25 @@ def plausibility_test(df):
     #return integrity_issues
     
     return dbh_reduction, position_reversal, life_status_reversal, integrity_reversal, decay_inconsistency
+
+#check dbh for smaller than threshold
+def tree_smaller_than_threshold():
+    dbh_smaller_than_threshold = """
+    SELECT t.composed_site_id, t.record_id, t.dbh, d.standing_alive_threshold 
+    FROM public.tree t
+    JOIN public.plots p
+        ON unique_plot_id = p.record_id
+    JOIN site_design d
+        ON unique_site_design_id = d.record_id
+    where t.dbh < d.standing_alive_threshold
+    """
+    dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold)
+    
+    if dbh_smaller_than_threshold is not None:
+        print(dbh_smaller_than_threshold)
+        st.dataframe(dbh_smaller_than_threshold)  # Display the result as a DataFrame
+    else:
+        st.write("No tree_smaller_than_threshold or an error occurred.")
 
 def check_species_change(df, xpi):
     # Group by the relevant columns and check if the species changes across inventory years
@@ -259,34 +261,47 @@ def check_missing_in_census(df, xpi):
     
 
 # Function to send results via email
-def send_email(results, email, xpi):
+def send_email(results, statistics, file, email, xpi):
     yag = yagmail.SMTP(EMAIL_USER, EMAIL_PASSWORD)
     subject = f"Integrity Test Results for plots of type: {xpi}"
     body = "Please find the results attached."
    
-    json_file = save_json (results)
+    json_file = save_json (results, statistics, file)
 
     # Send email with the JSON file as an attachment
     yag.send(to=email, subject=subject, contents=[body, json_file])
 
 # Function to save results as json
-def save_json(results):
+def save_json(results, statistics, file, xpi):
 
     # Define the file path for saving the JSON file
     temp_dir = "temp_dir"
     os.makedirs(temp_dir, exist_ok=True)
-    json_file = "temp_dir/integrity_test_results.json"  # Temporary file path
+    json_file = f"temp_dir/integrity_test_results_{file}_{xpi}.json"  # Temporary file path
 
     # Process `results` to remove headers
-    processed_results = {key: value.to_dict(orient='records') if hasattr(value, 'to_dict') else value for key, value in results.items()}
+    processed_results = {
+        key: value.to_dict(orient='records') if isinstance(value, pd.DataFrame) else value 
+        for key, value in results.items()
+    }
 
-    # Convert the `processed_results` dictionary to JSON and save to file (without headers)
-    with open(json_file, 'w') as f:
-        json.dump(processed_results, f, default=str, indent=4)
+    # Combine statistics and results into one JSON structure
+    output_data = {
+        "statistics": statistics,
+        "results": processed_results
+    }
+
+    # Save to JSON file
+    with open(json_file, 'w', encoding='utf-8') as f:
+        json.dump(output_data, f, default=str, indent=4)
+
+    print(f"Results successfully saved to {json_file}")
+    return output_data
 
 # Run tests and send the results
-def run_tests_in_background(df_integrity, email, df, xpi, page):
+def run_tests_in_background(df_integrity, df, file, xpi):
     results = {}
+    statistics = []
     print(f"Running tests in background")
     try:
         # results['results_plausibility_test'] = plausibility_test(df_integrity)
@@ -294,15 +309,45 @@ def run_tests_in_background(df_integrity, email, df, xpi, page):
         results['species'] = check_species_change(df, xpi)
         results['missing_in_census'] = check_missing_in_census(df, xpi)
 
-        print(f'Tests was run in the background. Results will be sent to your email.')
+        # Calculate statistics
+        total_records = len(df_integrity)  # Total records being tested
+        print("\n==== Plausibility Test Results Summary ====")
+
+        for key, value in results.items():
+            if isinstance(value, pd.DataFrame):  # If the value is a DataFrame, count rows
+                count = value.shape[0]  # Get number of rows
+            elif isinstance(value, (list, set, dict)):  # Count items in lists, sets, or dicts
+                count = len(value)
+            else:
+                count = 0  # If it's something unexpected, set count to 0
+
+            ratio = count / total_records if total_records > 0 else 0
+            percentage = ratio * 100
+            print(f"{key}: {count} issues found ({percentage:.2f}% of total {total_records})")
+            statistics.append({"test": key, "issues found": count, "total": total_records, "that is": f"{percentage:.2f}"})
+
+        output_data = save_json(results, statistics, file, xpi)
+        return output_data
         
-        if page == 'onepager':
-            save_json(results)
-        if page == 'plausibility_only':
-            send_email(results, email, xpi)
     except Exception as e:
         print(f"Error running plausibility_test: {e}")
+        raise e
+    
+import concurrent.futures 
+def run_parallel_plausibility_tests(df_integrity_lpi_id, df_integrity_spi_id, df, file):
+    """Run tests in parallel for different datasets."""
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future_lpi = executor.submit(run_tests_in_background, df_integrity_lpi_id, df, file.name, 'lpi_id')
+        future_spi = executor.submit(run_tests_in_background, df_integrity_spi_id, df, file.name, 'spi_id')
         
+        # Retrieve results when finished
+        output_data_lpi = future_lpi.result()
+        output_data_spi = future_spi.result()
+        
+        write_and_log("Tests were run in the background. Results will be saved in JSON file.")
+        write_and_log(output_data_lpi)
+        write_and_log(output_data_spi)
+
 def file_comparison(file_1, file_2):
     # Load the files into DataFrames
     df1 = pd.read_csv(file_1)

@@ -1,73 +1,44 @@
 import streamlit as st
-import json
-import os
-import re
-from modules.database_utils import load_data_with_copy_command, load_ecological_data_with_copy_command, do_query, composed_site_id_sites, move_data_to_tree, update_unique_plot_id_3stg, get_wildcard_db_id, composed_site_id_to_all
-from modules.dataframe_actions import determine_configs, df_from_uploaded_file, find_extra_columns
+from modules.database_utils import password_check, load_data_with_copy_command, do_query, move_data_to_tree, tree_staging_id
+from modules.dataframe_actions import etl_process_df, df_from_uploaded_file
 from modules.logs import write_and_log
-import logging
     
-logging.basicConfig(
-    filename='logs.log',  # Specify your log file name
-    level=logging.INFO,  # Set the logging level to INFO or WARNING
-    format='%(asctime)s - %(levelname)s - %(message)s',  # Define the format of log messages
-)
-logging.info('Logging setup is complete.')
-
 # Page Name
 st.title("3_Database_Actions")
 
-# Password input field, check the password entered by the user is correct
-user_password = st.text_input("This section is reserved for manupulation with the database. To proceed, enter password", type="password")
-PASSWORD = st.secrets["general"]["site_password"]
-if user_password == PASSWORD:
-    st.success("Password is correct. You can now proceed.")
-
+if password_check():
     # FILE UPLOAD and ETL
-    uploaded_file = st.file_uploader("Choose a file", type=["csv", "txt"])
-    if uploaded_file:
-        df, uploaded_file_path = df_from_uploaded_file(uploaded_file)
+    # Multi-file uploader
+    uploaded_files = st.file_uploader("Upload CSV files", type=["csv", "txt"], accept_multiple_files=True)
 
-        #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
-        table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file.name, df.columns)
-        extra_columns = find_extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
-        
-        # Option to ignore columns
-        ignore_columns_option = st.checkbox("Do you want to ignore some columns?")
-        ignored_columns = []
-        if ignore_columns_option:
-            # Dynamically generate checkboxes for each column
-            ignored_columns = st.multiselect("Columns to ignore", options=df.columns)
+    if uploaded_files:
+        for file in uploaded_files:
+            df, uploaded_file_path = df_from_uploaded_file(file)
+            table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping = etl_process_df(file.name, df.columns, df)
 
-        # Display the ignored columns (for confirmation)
-        if ignored_columns:
-            st.write("You chose to ignore these columns:", ignored_columns)
-
-        # COPY TO DATABASE
-        if st.button("Copy Data to Database"):
-            write_and_log(f'attempting to upload: {uploaded_file}')
-            load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns)
-            write_and_log("Data copy to the database is at its end.")
-        # COPY ecological attributes to sites 
-        if st.button("Copy ecological attributes to sites tbl of Database"):
-            write_and_log(f'attempting to upload: {uploaded_file}')
-            load_ecological_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns)
-            write_and_log("Data copy to the database is at its end.")
+            # COPY TO DATABASE
+            if st.button("Copy Data to Database"):
+                write_and_log(f'attempting to upload: {file.name}')
+                load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping)
+                write_and_log("Data copy to the database is at its end.")
+            # COPY ecological attributes to sites 
+            #if st.button("Copy ecological attributes to sites tbl of Database"):
+            #    write_and_log(f'attempting to upload: {file}')
+            #    load_ecological_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns)
+            #    write_and_log("Data copy to the database is at its end.")
     
     # HELPER FUNCTIONS (set the record_id values, moving to tree)
     helper_operations = {
         "Move Data to Tree Table": move_data_to_tree, 
-        "Update unique_plot_id in tree_staging": update_unique_plot_id_3stg, 
-        "Update composed_site_id in sites table": composed_site_id_sites,
-        "Propagate composed_site_id from sites table to all tables":composed_site_id_to_all,
-        "get_wildcard_db_id": get_wildcard_db_id}
+        "Update unique_plot_id in tree_staging": tree_staging_id, 
+        #"Update composed_site_id in sites table": composed_site_id_sites,
+        #"Propagate composed_site_id from sites table to all tables":composed_site_id_to_all,
+        #"get_wildcard_db_id": get_wildcard_db_id
+        }
 
     helper_operation_key = st.selectbox("CHOOSE A HELPER OPERATION", list(helper_operations.keys()))
     selected_function = helper_operations[helper_operation_key]
 
-    if st.button("Run that helper operation"):
-        if helper_operation_key == "Propagate composed_site_id from sites table to all tables":
-            composed_site_id_to_all()
-        else:    
-            do_query(selected_function)
+    if st.button("Run that helper operation"):  
+        do_query(selected_function)
         write_and_log(f"{helper_operation_key}  is at its end.")
