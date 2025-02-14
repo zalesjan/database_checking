@@ -324,7 +324,7 @@ def run_tests_in_background(df_integrity, df, file, xpi):
             ratio = count / total_records if total_records > 0 else 0
             percentage = ratio * 100
             print(f"{key}: {count} issues found ({percentage:.2f}% of total {total_records})")
-            statistics.append({"test": key, "issues found": count, "total": total_records, "that is": f"{percentage:.2f}"})
+            statistics.append({"test": key, "issues found": count, "total": total_records, "that is this many percent": f"{percentage:.2f}"})
 
         output_data = save_json(results, statistics, file, xpi)
         return output_data
