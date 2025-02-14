@@ -5,8 +5,13 @@ from office365.runtime.auth.client_credential import ClientCredential
 
 # SharePoint Credentials
 SHAREPOINT_URL = st.secrets["MS"]["SHAREPOINT_URL"]
+<<<<<<< HEAD
 CLIENT_ID = st.secrets["MS"]["SHAREPOINT_URL"]
 CLIENT_SECRET = st.secrets["MS"]["SHAREPOINT_URL"]
+=======
+CLIENT_ID = st.secrets["MS"]["CLIENT_ID"]
+CLIENT_SECRET = st.secrets["MS"]["CLIENT_SECRET"]
+>>>>>>> 9a5484f (one pager plausibility fixed for one pager by removing mail)
 
 # SharePoint Folder Path (inside 'Documents' or another library)
 SHAREPOINT_FOLDER = "Shared Documents/General/Harmonised"
