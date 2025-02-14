@@ -29,9 +29,7 @@ plots_id =f"""
         WHERE 
             p.composed_site_id = d.composed_site_id
             AND p.inventory_year = d.inventory_year
-            AND (p.lpi_id = d.lpi_id OR p.spi_id = d.spi_id)
 			AND p.inventory_id = d.inventory_id
-			AND p.circle_no = d.circle_no
 			and d.composed_site_id like %s;
         """
 site_design_id =f"""
