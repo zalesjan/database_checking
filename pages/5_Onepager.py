@@ -30,6 +30,10 @@ if password_check():
                 
                 # DATA VALIDATION
                 validation_results, columns_for_exploration = validate_file(df, config, file.name)
+                # Exclude certain columns from exploration
+                excluded_columns = {'tree_id', 'height', 'dbh'}
+                columns_for_exploration = [col for col in columns_for_exploration if col not in excluded_columns]
+
                 st.session_state['columns_for_exploration'] = columns_for_exploration
                 if columns_for_exploration:
                     st.warning(f"These {len(columns_for_exploration)} columns did not pass the test and need further exploration:")
@@ -64,9 +68,9 @@ if password_check():
                 if table_name == "sites":
                     institute = df["institute"]
                 if table_name == ["site_design"]:
-                    do_query(site_design_id)
+                    do_query(site_design_id, institute)
                 if table_name == "plots":
-                        do_query(plots_id)   
+                        do_query(plots_id, institute)   
                 if table_name == "tree_staging":
                     do_query(tree_staging_id)
                     do_query(move_data_to_tree)

@@ -34,7 +34,7 @@ def etl_process_df(uploaded_file_name, df_columns, df):
 
     #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
     table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping = determine_configs(uploaded_file_name, df_columns)
-    extra_columns = find_extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
+    extra_columns = find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes)
     
     # Option to ignore columns
     ignore_columns_option = st.checkbox("Do you want to ignore some columns?", key=f"{unique_key_prefix}ignore_columns")
@@ -49,9 +49,12 @@ def etl_process_df(uploaded_file_name, df_columns, df):
 
     return table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping
 
-def find_extra_columns(df, core_and_alternative_columns, ordered_core_attributes):
+def find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes):
+    # Normalize the column names from the file to lowercase
+    df_columns_lower = {col.lower(): col for col in df_columns}  # Mapping original to lowercase
+
     # Extract expected column names (main attributes, not alternatives)
-    extra_columns = [col for col in df.columns if col not in core_and_alternative_columns]
+    extra_columns = [col for col in df_columns_lower if col not in core_and_alternative_columns]
     st.warning(f"These {len(ordered_core_attributes)} columns for basic (mandatory) attributes were found:")
     st.write(f"{ordered_core_attributes}")
     if extra_columns:
@@ -184,8 +187,11 @@ table_mapping = {
     }
 
 def determine_configs(file_path, df_columns):
-    # Define the mapping of base filename content to table names
     
+    # Normalize the column names from the file to lowercase
+    df_columns_lower = {col.lower(): col for col in df_columns}  # Mapping original to lowercase
+    
+    # Define the mapping of base filename content to table names
     base_filename = os.path.basename(file_path).lower()
     
     # Find the appropriate table name and config file based on the filename
@@ -208,7 +214,7 @@ def determine_configs(file_path, df_columns):
             core_and_alternative_columns = set(column_mapping.keys())
 
             # Filter and reorder core attributes based on their presence and order in the uploaded file's columns
-            ordered_core_attributes = [column_mapping[col] for col in df_columns if col in column_mapping]
+            ordered_core_attributes = [column_mapping[col] for col in df_columns_lower if col in column_mapping]
                         
             # Join the core_attributes list into a comma-separated string
             core_columns_string = ", ".join(ordered_core_attributes)
@@ -228,15 +234,20 @@ def determine_order(file):
         if key in base_filename:
             return (file, order)  # Return file and assigned order
 
+import pandas as pd
+
 def dataframe_for_tree_integrity(df):
+    """
+    Process the DataFrame for tree integrity checks, ensuring that empty filtered DataFrames 
+    are returned only when applicable, while the other continues processing.
+    """
+
     # Define the columns needed for the integrity checks
-    columns_to_check = ['site_id', 'wildcard_sub_id','composed_site_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 
+    columns_to_check = ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 
                         'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
     
     # Filter only existing columns in df
     existing_columns = [col for col in columns_to_check if col in df.columns]
-    
-    # Create a filtered DataFrame for integrity checks
     df_for_integrity_checks = df[existing_columns].copy()
 
     # Step 1: Sort the data to ensure correct chronological order within groups
@@ -246,30 +257,48 @@ def dataframe_for_tree_integrity(df):
     df_integrity_spi_id = df_for_integrity_checks.sort_values(
         by=[col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year'] if col in df_for_integrity_checks.columns]
     )
+    
+    # Step 2: Remove rows where lpi_id or spi_id is missing or invalid
+    df_filtered_lpi_id = df_integrity_lpi_id[~df_integrity_lpi_id['lpi_id'].isin(['\\N', None, ''])]
+    df_filtered_spi_id = df_integrity_spi_id[~df_integrity_spi_id['spi_id'].isin(['\\N', None, ''])]
 
-    # Step 2: Use groupby (without inventory_year) and create previous values for each column
-    grouped_lpi_id = df_integrity_lpi_id.groupby(
-        [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'lpi_id', 'tree_id'] if col in df_integrity_lpi_id.columns]
-    )
-    grouped_spi_id = df_integrity_spi_id.groupby(
-        [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'tree_id'] if col in df_integrity_spi_id.columns]
-    )
+    # Step 3: If filtering results in empty DataFrames, return only the affected DataFrame as empty
+    if df_filtered_lpi_id.empty:
+        print("⚠️ Warning: No valid rows left after filtering lpi_id. Returning empty DataFrame.")
+        df_filtered_lpi_id = pd.DataFrame(columns=existing_columns)  # Ensure the structure is maintained
+    
+    if df_filtered_spi_id.empty:
+        print("⚠️ Warning: No valid rows left after filtering spi_id. Returning empty DataFrame.")
+        df_filtered_spi_id = pd.DataFrame(columns=existing_columns)  # Ensure the structure is maintained
 
-    # Create previous counterparts for each column and add them to the DataFrame
-    for column in existing_columns:
-        if column != 'inventory_year':  # Skip inventory_year for the shift
-            df_integrity_lpi_id[f'previous_{column}'] = grouped_lpi_id[column].shift(1)
-            df_integrity_spi_id[f'previous_{column}'] = grouped_spi_id[column].shift(1)
+    # Step 4: Use groupby (without inventory_year) and create previous values for each column
+    if not df_filtered_lpi_id.empty:
+        grouped_lpi_id = df_filtered_lpi_id.groupby(
+            [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'lpi_id', 'tree_id'] if col in df_filtered_lpi_id.columns]
+        )
+        for column in existing_columns:
+            if column != 'inventory_year':  # Skip inventory_year for the shift
+                df_filtered_lpi_id[f'previous_{column}'] = grouped_lpi_id[column].shift(1)
+
+    if not df_filtered_spi_id.empty:
+        grouped_spi_id = df_filtered_spi_id.groupby(
+            [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'tree_id'] if col in df_filtered_spi_id.columns]
+        )
+        for column in existing_columns:
+            if column != 'inventory_year':  # Skip inventory_year for the shift
+                df_filtered_spi_id[f'previous_{column}'] = grouped_spi_id[column].shift(1)
+
+    # Debugging output
+    print("✅ DataFrame with current and previous values:")
+    print(df_filtered_lpi_id.head())  
+    print(df_filtered_spi_id.head())  
+
+    return df_filtered_lpi_id, df_filtered_spi_id
+
 
     # Handle missing values (optional: fill with NaN, None, or a default value)
     #df_integrity_lpi_id.fillna(value={'previous_' + col: None for col in existing_columns if col != 'inventory_year'}, inplace=True)
     #df_integrity_spi_id.fillna(value={'previous_' + col: None for col in existing_columns if col != 'inventory_year'}, inplace=True)
 
-    # Debugging output
-    print("DataFrame with current and previous values:")
-    print(df_integrity_lpi_id.head())  # Print the first few rows for inspection
-    print(df_integrity_spi_id.head())  # Print the first few rows for inspection
-
-    return df_integrity_lpi_id, df_integrity_spi_id
 
 

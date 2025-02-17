@@ -146,7 +146,19 @@ def value_counts_for_each_distinct_value(df, columns_for_exploration):
         for value, count in values.items():
             write_and_log(f" - {value}: {count}")
 
-def plausibility_test(df):
+def set_base_columns(df, xpi):
+# Define required columns dynamically based on availability
+    base_columns = ['site_id', xpi, 'tree_id', 'inventory_year']
+
+    # Dynamically add `composed_site_id` and `wildcard_sub_id` if they exist
+    if 'composed_site_id' in df.columns:
+        base_columns.append('composed_site_id')
+    if 'wildcard_sub_id' in df.columns:
+        base_columns.append('wildcard_sub_id')
+
+    return base_columns
+
+def plausibility_test(df, xpi, base_columns):
     # Initialize results dictionary for storing integrity issues
     #integrity_issues = {
     #    'dbh_reduction': None,
@@ -155,7 +167,8 @@ def plausibility_test(df):
     #    'integrity_reversal': None,
     #    'decay_inconsistency': None}
     #   integrity_issues = {}
-    
+
+
     # Initialize empty results
     dbh_reduction = None
     position_reversal = None
@@ -163,17 +176,11 @@ def plausibility_test(df):
     integrity_reversal = None
     life_status_reversal = None
 
-    # Define required columns dynamically based on availability
-    base_columns = ['site_id', 'spi_id', 'tree_id', 'inventory_year']
-
-    # Include `composed_site_id` and `wildcard_sub_id` if they exist in df
-    if 'composed_site_id' in df.columns:
-        base_columns.append('composed_site_id')
-    if 'wildcard_sub_id' in df.columns:
-        base_columns.append('wildcard_sub_id')
-
     # Check DBH Reduction: Reduction by more than 2.5 cm or 10%
     if {'dbh', 'previous_dbh', 'life'}.issubset(df.columns):
+    
+        # Drop NaN values
+        df.dropna(subset=['dbh', 'previous_dbh'], inplace=True)
         life_filter = df['life'] == "A"  
         dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
         dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][base_columns]
@@ -221,16 +228,30 @@ def tree_smaller_than_threshold():
     else:
         st.write("No tree_smaller_than_threshold or an error occurred.")
 
-def check_species_change(df, xpi):
-    # Group by the relevant columns and check if the species changes across inventory years
-    species_change = df.groupby(['site_id', 'composed_site_id', xpi, 'tree_id'])['full_scientific'].transform('nunique') > 1
+def check_species_change(df, base_columns):
+    
+    # Ensure 'full_scientific' exists before proceeding
+    if 'full_scientific' not in df.columns:
+        print("Warning: 'full_scientific' column is missing from DataFrame.")
+        return None
+    
+    # Remove 'inventory_year' to ensure changes are checked across years
+    grouping_columns = [col for col in base_columns if col != 'inventory_year']
+    
+    # Group by relevant columns and check if species changes across inventory years
+    species_counts = df.groupby(grouping_columns)['full_scientific'].nunique().reset_index()
+    
+    # Filter groups where species count > 1 (i.e., changes occurred)
+    species_changes = species_counts[species_counts['full_scientific'] > 1]
 
-    # Create a new column in the dataframe to store the result of the species change check
-    df['species_change'] = species_change
+    # Merge back to the original DataFrame to filter relevant rows
+    df = df.merge(species_changes[grouping_columns], on=grouping_columns, how='inner')
 
-    # Filter rows where there is a species change and create an integrity issue log
-    species_integrity_issues = df[df['species_change'] == True][['site_id', 'composed_site_id', xpi, 'tree_id', 'inventory_year', 'full_scientific']]
-    print(f"{species_integrity_issues}")
+    # Filter rows where there is a species change
+    species_integrity_issues = df[grouping_columns + ['inventory_year', 'full_scientific']]
+    
+    print(f"Species integrity issues detected:\n{species_integrity_issues}")
+    
     return species_integrity_issues
 
     #def check_geometry_shift(df, xpi):
@@ -241,30 +262,41 @@ def check_species_change(df, xpi):
     #                     (df['geometry_y'] - df['previous_geometry_y']).pow(2)).pow(0.5) > 1
     #integrity_issues['geometry_shift'] = df[geometry_criteria & df['previous_geometry_x'].notna()]
 
-def check_missing_in_census(df, xpi):
-    # Step 1: Calculate the number of distinct census years per unique_plot_id
-    plot_census_count = df.groupby(['site_id', 'composed_site_id', xpi])['inventory_year'].nunique().reset_index()
-    plot_census_count.columns = ['site_id', 'composed_site_id', xpi, 'total_census_years']
+def check_missing_in_census(df, base_columns):
+    # Ensure 'inventory_year' exists before proceeding
+    if 'inventory_year' not in df.columns:
+        print("Warning: 'inventory_year' column is missing from DataFrame.")
+        return None
 
-    # Step 2: Merge this information back to the original dataframe to know how many censuses are expected for each plot
-    df = df.merge(plot_census_count, on=['site_id', 'composed_site_id', xpi], how='left')
+    # Remove 'inventory_year' and 'tree_id' from base_columns safely
+    base_columns = [col for col in base_columns if col not in {'inventory_year', 'tree_id'}]
 
-    # Step 3: Calculate how many distinct census years each tree_id appears in per unique_plot_id
-    tree_census_count = df.groupby(['site_id', 'composed_site_id', xpi, 'tree_id'])['inventory_year'].nunique().reset_index()
-    tree_census_count.columns = ['site_id', 'composed_site_id', xpi, 'tree_id', 'tree_census_years']
+    # Step 1: Calculate the number of distinct census years per unique plot
+    plot_census_count = df.groupby(base_columns)['inventory_year'].nunique().reset_index()
+    plot_census_count.rename(columns={'inventory_year': 'total_census_years'}, inplace=True)
 
-    # Step 4: Merge this tree-level census count back to the dataframe to check for missing census records
-    df = df.merge(tree_census_count, on=['site_id', 'composed_site_id', xpi, 'tree_id'], how='left')
+    # Step 2: Merge this information back into df
+    df = df.merge(plot_census_count, on=base_columns, how='left')
 
-    # Step 5: Identify trees that are missing from any census (when tree_census_years is less than total_census_years)
+    # Step 3: Calculate how many distinct census years each tree_id appears in per unique plot
+    tree_census_count = df.groupby(base_columns + ['tree_id'])['inventory_year'].nunique().reset_index()
+    tree_census_count.rename(columns={'inventory_year': 'tree_census_years'}, inplace=True)
+
+    # Step 4: Merge tree-level census count into df
+    df = df.merge(tree_census_count, on=base_columns + ['tree_id'], how='left')
+
+    # Step 5: Identify missing census records, handling NaN values
+    df['tree_census_years'].fillna(0, inplace=True)
+    df['total_census_years'].fillna(0, inplace=True)
+    
     census_gap = df['tree_census_years'] < df['total_census_years']
 
-    # Store the result of trees that are missing from any census for their unique_plot_id
-    missing_in_census_integrity_issues = {}
-    missing_in_census_integrity_issues['missing_in_census'] = df[census_gap]
-    print(f"{missing_in_census_integrity_issues}")
-    return missing_in_census_integrity_issues
-    
+    # Store results
+    missing_in_census_integrity_issues = df[census_gap][base_columns + ['tree_id', 'inventory_year']]
+
+    print(missing_in_census_integrity_issues)
+    return {"missing_in_census": missing_in_census_integrity_issues}
+
 
 # Function to send results via email
 def send_email(results, statistics, file, email, xpi):
@@ -306,14 +338,22 @@ def save_json(results, statistics, file, xpi):
 
 # Run tests and send the results
 def run_tests_in_background(df_integrity, df, file, xpi):
+    # Check if df_integrity is empty and stop execution
+    df_integrity = df_integrity
+    print(df_integrity)
+    if df_integrity.empty:
+        print("⚠️ Warning: df_integrity is empty. Skipping plausibility tests.")
+        return None 
+    
     results = {}
     statistics = []
+    base_columns = set_base_columns(df, xpi)
     print(f"Running tests in background")
     try:
         # results['results_plausibility_test'] = plausibility_test(df_integrity)
-        results['dbh_reduction'], results['position_reversal'], results['life_status_reversal'], results['integrity_reversal'], results['decay_inconsistency'] = plausibility_test(df_integrity)
-        results['species'] = check_species_change(df, xpi)
-        results['missing_in_census'] = check_missing_in_census(df, xpi)
+        results['dbh_reduction'], results['position_reversal'], results['life_status_reversal'], results['integrity_reversal'], results['decay_inconsistency'] = plausibility_test(df_integrity, xpi, base_columns)
+        results['species'] = check_species_change(df_integrity, base_columns)
+        results['missing_in_census'] = check_missing_in_census(df_integrity, base_columns)
 
         # Calculate statistics
         total_records = len(df_integrity)  # Total records being tested
@@ -340,6 +380,7 @@ def run_tests_in_background(df_integrity, df, file, xpi):
         raise e
     
 import concurrent.futures 
+
 def run_parallel_plausibility_tests(df_integrity_lpi_id, df_integrity_spi_id, df, file):
     """Run tests in parallel for different datasets."""
     with concurrent.futures.ThreadPoolExecutor() as executor:

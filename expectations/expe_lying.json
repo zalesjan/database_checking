@@ -19,8 +19,7 @@
         },
       "tree_id": {
         "alternatives": ["tree_id", "treeid", "tree-id", "treeidentifier"],
-        "non_null": true,
-        "is_numeric": true
+        "non_null": true
       },
       "stem_id": {
         "alternatives": ["stem_id", "stemid", "stem-id", "stemidentifier"],

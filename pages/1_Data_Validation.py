@@ -20,7 +20,7 @@ uploaded_file = st.file_uploader("Upload a file to be checked", type=["csv", "tx
 if uploaded_file:
     df, uploaded_file_path = df_from_uploaded_file(uploaded_file)
 
-    table_name, ordered_core_attributes, extra_columns, ignored_columns, config = etl_process_df(uploaded_file.name, df.columns, df)
+    table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping = etl_process_df(uploaded_file.name, df.columns, df)
     
     # VALIDATION
     # PRESENCE OF KEY COLUMNS AND DATA (FORMAT) VALIDATION
