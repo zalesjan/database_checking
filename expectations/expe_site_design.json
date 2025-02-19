@@ -12,10 +12,6 @@
         "alternatives": ["site_name", "sitename", "site-name", "site_name"],
         "non_null": true
       },
-      "site_id": {
-        "alternatives": ["site_id", "siteid", "site-id", "site_id"],
-        "non_null": true
-      },
       "institute": {
         "alternatives": ["institute", "institution", "institute_name", "institute"]
       },
@@ -102,23 +98,6 @@
         "alternatives": ["epsg_code", "epsgcode", "epsg-code"],
         "is_numeric": true,
         "allowed_values": [4326, 3857, 32633, 27700]
-      },
-      "forest_type": {
-        "alternatives": ["his_fortype", "forest_type", "foresttype", "forest-type"],
-        "allowed_values": ["Boreal", "Temperate", "Tropical", "Subtropical"]
-      },
-      "year_abandonment": {
-        "alternatives": ["year_abandonment", "yearabandoment", "year-abandoment"],
-        "is_numeric": true,
-        "range": [1800, "current_year"]
-      },
-      "his": {
-        "alternatives": ["his", "historical_indicator", "historical", "historical_indicator_status"],
-        "is_boolean": true
-      },
-      "soil_class": {
-        "alternatives": ["his_soil", "soil_class", "soilclass", "soil-class"],
-        "allowed_values": ["Sandy", "Clay", "Loam", "Silt"]
       },
       "other": {
         "alternatives": ["other", "miscellaneous", "additional_info", "other_data"]

@@ -217,7 +217,7 @@ def tree_smaller_than_threshold():
     JOIN public.plots p
         ON unique_plot_id = p.record_id
     JOIN site_design d
-        ON unique_site_design_id = d.record_id
+        ON site_design_record_id = d.record_id
     where t.dbh < d.standing_alive_threshold
     """
     dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold)

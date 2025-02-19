@@ -11,6 +11,7 @@ from modules.dataframe_actions import determine_copy_command_for_ecology_with_ig
 #queries used in helper operations
 get_wildcard_db_id = "SELECT composed_site_id, record_id FROM public.sites"
 
+
 tree_staging_id =f"""
         UPDATE tree_staging t
         SET unique_plot_id = p.record_id
@@ -19,17 +20,16 @@ tree_staging_id =f"""
             t.composed_site_id = p.composed_site_id
             AND t.inventory_year = p.inventory_year
             AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
-			AND p.inventory_id = t.inventory_id
-			AND t.circle_no = p.circle_no;
+            AND t.circle_no IS NOT DISTINCT FROM p.circle_no
+            and p.composed_site_id like %s;
         """
 plots_id =f"""
         UPDATE plots p
-        SET unique_site_design_id = d.record_id
+        SET site_design_record_id = d.record_id
         FROM site_design d
         WHERE 
             p.composed_site_id = d.composed_site_id
             AND p.inventory_year = d.inventory_year
-			AND p.inventory_id = d.inventory_id
 			and d.composed_site_id like %s;
         """
 site_design_id =f"""
@@ -41,9 +41,9 @@ site_design_id =f"""
             and s.composed_site_id like %s;
         """
 move_data_to_tree = """
-        INSERT INTO public.tree (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_sub_id, circle_no)
+        INSERT INTO public.tree (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no)
         SELECT 
-            composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, institute, wildcard_sub_id, circle_no
+            composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no
         FROM
             public.tree_staging;
         """
@@ -93,38 +93,48 @@ def get_db_connection():
         print("An error occurred while connecting to the database:", str(e))
         return None
 
-def do_query(query, placeholder=None):
+def do_query(query, placeholders=None):
+    """
+    Executes a SQL query with optional placeholders.
+    
+    Args:
+        query (str): The SQL query string.
+        placeholders (tuple, optional): Tuple containing one or two placeholder values.
+
+    Returns:
+        tuple: (affected_rows, result_df)
+    """
     conn = get_db_connection()
     if conn is None:
         st.error("Database connection failed.")
-        return None  # If connection fails, return None
+        return None, None  # Ensure function always returns a tuple
 
     try:
-        # Execute query and fetch results
         cur = conn.cursor()
-        if placeholder is not None:
-            cur.execute(query, (f"%{placeholder}%",))
+
+        # Handling multiple placeholders
+        if placeholders:
+            cur.execute(query, placeholders)
+            print(f"Executing: {query} with placeholders {placeholders}")
         else:
             cur.execute(query)
-        
-        if "dbh < d.standing_alive_threshold" in query:
-            # Fetch all results
+
+        # Case 1: If query is SELECT and returns rows
+        if "SELECT" in query.upper():
             rows = cur.fetchall()
             columns = [desc[0] for desc in cur.description]  # Get column names
+            result_df = pd.DataFrame(rows, columns=columns) if rows else pd.DataFrame()
+            conn.commit()
+            return None, result_df  # Ensure it returns a tuple with None for affected_rows
 
-            # Create a DataFrame for easy display
-            result_df = pd.DataFrame(rows, columns=columns)
-            conn.commit()
-            return result_df  # Return the DataFrame with results
-        else:
-            conn.commit()
+        # Case 2: If query is UPDATE/DELETE and modifies rows
+        affected_rows = cur.rowcount  # Get number of affected rows
+        conn.commit()
+        return affected_rows, None  # Ensure it returns a tuple with None for result_df
 
     except Exception as e:
-        st.error(f"An error occurred: {str(e)}")
-        return None
-    finally:
-        cur.close()
-        conn.close()
+        st.error(f"An error occurred: {e}")
+        return None, None  # Ensure function always returns two values
 
 def load_data_with_copy_command(df, file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping):
     """
