@@ -22,7 +22,7 @@ if uploaded_file:
     df, uploaded_file_path = df_from_uploaded_file(uploaded_file)
 
     #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
-    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns = determine_configs(uploaded_file.name, df.columns)
+    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping = determine_configs(uploaded_file.name, df.columns)
     extra_columns = find_extra_columns(df, core_and_alternative_columns, ordered_core_attributes)
 
     # VALIDATION

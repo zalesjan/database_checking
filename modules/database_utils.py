@@ -11,6 +11,60 @@ from modules.dataframe_actions import determine_copy_command_for_ecology_with_ig
 #queries used in helper operations
 get_wildcard_db_id = "SELECT composed_site_id, record_id FROM public.sites"
 
+truncate_calc_basal_area = f"""TRUNCATE TABLE calc_basal_area;"""
+truncate_no_plots_per_year = f"""TRUNCATE TABLE no_plots_per_year;"""
+
+basic_query_no_plots_per_year = f"""
+        INSERT INTO no_plots_per_year
+        SELECT  
+            COUNT(p.record_id) as p_num_plots, 
+            s.record_id as sd_record_id,
+            s.inventory_year,
+            s.composed_site_id 
+        FROM public.plots p
+        JOIN
+            public.site_design s ON p.site_design_record_id = s.record_id
+        WHERE
+            p.composed_site_id like %s
+        GROUP BY sd_record_id, s.composed_site_id, s.inventory_year
+        ORDER BY s.composed_site_id ASC;
+        """
+
+basic_query_calc_basal_area = f"""
+        INSERT INTO calc_basal_area
+		SELECT 
+            t.*, 
+            (pi() *power(dbh/20, 2) ) AS basal_area
+        FROM public.trees t
+        JOIN
+            public.plots ON t.unique_plot_id = plots.record_id
+        WHERE
+            t.composed_site_id like %s;
+        """
+
+basic_query_main_query = f"""
+        SELECT
+        site_design.composed_site_id,
+        site_design.inventory_type,
+        plots.inventory_year,
+        p.p_num_plots,
+        COUNT(calc_basal_area.record_id)/((plots.sampled_area/10000)*p.p_num_plots) AS ntrees_ha,
+        SUM(calc_basal_area.basal_area)/((plots.sampled_area)*p.p_num_plots) AS ba_hectare,
+        MAX(calc_basal_area.dbh)/10 AS dbh_max,
+        MIN(calc_basal_area.dbh)/10 AS dbh_min,
+        AVG(calc_basal_area.dbh)/10 AS dbh_mean
+        FROM
+            public.site_design
+        JOIN
+            public.plots ON site_design.record_id = plots.site_design_record_id
+        JOIN
+            calc_basal_area ON plots.record_id = calc_basal_area.unique_plot_id
+        JOIN
+            no_plots_per_year p ON plots.site_design_record_id = p.sd_record_id
+        GROUP BY
+            site_design.composed_site_id, plots.inventory_year, plots.sampled_area, p.p_num_plots, site_design.inventory_type
+        order by site_design.composed_site_id;        
+        """
 
 tree_staging_id =f"""
         UPDATE tree_staging t
@@ -23,6 +77,19 @@ tree_staging_id =f"""
             AND t.circle_no IS NOT DISTINCT FROM p.circle_no
             and p.composed_site_id like %s;
         """
+
+cwd_id =f"""
+        UPDATE cwd t
+        SET unique_plot_id = p.record_id
+        FROM plots p
+        WHERE 
+            t.composed_site_id = p.composed_site_id
+            AND t.inventory_year = p.inventory_year
+            AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
+            AND t.circle_no IS NOT DISTINCT FROM p.circle_no
+            and p.composed_site_id like %s;
+        """
+
 plots_id =f"""
         UPDATE plots p
         SET site_design_record_id = d.record_id
@@ -41,12 +108,13 @@ site_design_id =f"""
             and s.composed_site_id like %s;
         """
 move_data_to_tree = """
-        INSERT INTO public.tree (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no)
+        INSERT INTO public.trees (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no)
         SELECT 
             composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no
         FROM
             public.tree_staging;
         """
+truncate_tree_staging = """truncate tree_staging"""
 
 composed_site_id_sites = """
         UPDATE sites
@@ -102,7 +170,7 @@ def do_query(query, placeholders=None):
         placeholders (tuple, optional): Tuple containing one or two placeholder values.
 
     Returns:
-        tuple: (affected_rows, result_df)
+        tuple: (affected_rows, result_df) - the latter for SELECTs, the former for other than SELECT (UPDATE, INSERT, etc.)
     """
     conn = get_db_connection()
     if conn is None:
@@ -120,13 +188,13 @@ def do_query(query, placeholders=None):
             cur.execute(query)
 
         # Case 1: If query is SELECT and returns rows
-        if "SELECT" in query.upper():
+        if query.strip().upper().startswith("SELECT"):
             rows = cur.fetchall()
             columns = [desc[0] for desc in cur.description]  # Get column names
             result_df = pd.DataFrame(rows, columns=columns) if rows else pd.DataFrame()
             conn.commit()
             return None, result_df  # Ensure it returns a tuple with None for affected_rows
-
+        
         # Case 2: If query is UPDATE/DELETE and modifies rows
         affected_rows = cur.rowcount  # Get number of affected rows
         conn.commit()
@@ -153,8 +221,8 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
 
     # Prepare the DataFrame to include `extended_attributes`
     df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, ignored_columns)
-    st.write(f'DF to upload:', df_ready.head())
     # Connect to the database and execute the COPY command
+
     conn = get_db_connection()
     if conn is None:
         return
@@ -221,7 +289,26 @@ def load_ecological_data_with_copy_command(df, file_path, table_name, ordered_co
     finally:
         cur.close()
         conn.close()
-        
+
+
+def foreign_key_mismatch(table_name, unique_current_PK_value, previous_table_name, previous_table_count):    
+    # Compare foreign key counts against the primary key count in the previous table
+    if previous_table_count != unique_current_PK_value:
+        st.warning(
+            f"⚠️ Foreign key validation failed: {table_name} has {unique_current_PK_value} unique foreign keys, "
+            f"but {previous_table_name} has {previous_table_count} primary keys."
+        )
+        write_and_log(
+            f"⚠️ Foreign key validation failed: {table_name} has {unique_current_PK_value} unique foreign keys, "
+            f"but {previous_table_name} has {previous_table_count} primary keys."
+        )
+        return True
+    else:
+        st.success(
+            f"⚠️ Foreign key validation passed: {table_name} has {unique_current_PK_value} unique foreign keys, "
+            f"has also {previous_table_name} has also {previous_table_count} primary keys."
+        )
+
 def composed_site_id_to_all():
     tables_for_composed_site_id_to_all = ["tree_staging", "site_design", "plots"]
     for table_name in tables_for_composed_site_id_to_all:

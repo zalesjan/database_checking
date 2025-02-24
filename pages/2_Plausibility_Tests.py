@@ -12,7 +12,7 @@ if uploaded_file:
     df, uploaded_file_path = df_from_uploaded_file(uploaded_file)
 
     #GET CONFIGS
-    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping = determine_configs(uploaded_file.name, df.columns)
+    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping = determine_configs(uploaded_file.name, df.columns)
     
     # PLAUSIBILITY TEST
     if table_name == "tree_staging": 

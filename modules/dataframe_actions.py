@@ -1,6 +1,7 @@
 import json
 import os
 import pandas as pd
+import numpy as np
 import streamlit as st
 from modules.logs import write_and_log
 
@@ -30,24 +31,32 @@ def df_from_detected_file(file_path):
     return df
 
 def etl_process_df(uploaded_file_name, df_columns, df):
-    unique_key_prefix = f"{uploaded_file_name}_"
 
     #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
-    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping = determine_configs(uploaded_file_name, df_columns)
-    extra_columns = find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes)
+    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping = determine_configs(uploaded_file_name, df_columns)
     
-    # Option to ignore columns
-    ignore_columns_option = st.checkbox("Do you want to ignore some columns?", key=f"{unique_key_prefix}ignore_columns")
-    ignored_columns = []
-    if ignore_columns_option:
-        # Dynamically generate checkboxes for each column
-        ignored_columns = st.multiselect("Columns to ignore", options=df.columns,  key=f"{unique_key_prefix}ignore_columns")
+    extra_columns = find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes)
+    ignored_columns = find_ignored_columns(uploaded_file_name, df, extra_columns)
+        
+    return table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping
 
+def find_ignored_columns(uploaded_file_name, df, extra_columns):
+    unique_key_prefix = f"{uploaded_file_name}_"
+
+    df_ignore = df.copy()  # Create a copy to avoid modifying df
+    df_ignore.replace("\\N", np.nan, inplace=True)  # Replace \N only in the copy
+
+    # Identify ignored columns automatically
+    ignored_columns = [col for col in extra_columns if df_ignore[col].isna().all()]  # All values are NaN
+    
+
+    st.warning(f"These {len(ignored_columns)} ignored_columns were found")
+    st.write(f"{ignored_columns}")
     # Display the ignored columns (for confirmation)
     if ignored_columns:
         st.write("You chose to ignore these columns:", ignored_columns, key=f"{unique_key_prefix}ignore_columns")
 
-    return table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping
+    return ignored_columns
 
 def find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes):
     # Normalize the column names from the file to lowercase
@@ -78,19 +87,19 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
     """
     # Step 1: Create a copy of the DataFrame to avoid slice issues
     df_for_copy = df.copy()
-    st.write("Data Preview:", df_for_copy.head())
-    # Step 4: Rename columns to their primary names using `column_mapping`
-    df_for_copy = df_for_copy.rename(columns=column_mapping)
-    st.write("Data Preview:", df_for_copy.head())
     
-    #Step 2: Remove columns to ignore from both core and extra columns
+    # Step 2: Rename columns to their primary names using `column_mapping`
+    df_for_copy = df_for_copy.rename(columns=column_mapping)
+    
+    #Step 3: Remove columns to ignore from both core and extra columns
     if ignored_columns:
         ordered_core_attributes = [col for col in ordered_core_attributes if col not in ignored_columns]
         extra_columns = [col for col in extra_columns if col not in ignored_columns]
 
-    # Step 2: Keep only the necessary columns (both core and extra)
+    # Step 4: Keep only the necessary columns (both core and extra)
     df_for_copy = df_for_copy[ordered_core_attributes].copy()
     st.write("Data Preview:", df_for_copy.head())
+    
     # Create a new column `extended_attributes` by combining extra columns into a JSON string
     if extra_columns:
         df_for_copy.loc[:, 'extended_attributes'] = df.loc[:, extra_columns].apply(lambda row: json.dumps(row.dropna().to_dict()), axis=1)
@@ -177,13 +186,13 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
     return copy_command
 
 table_mapping = {
-        "sites": ("sites", "expectations/expe_sites.json", 1),
-        "design": ("site_design", "expectations/expe_site_design.json", 2),
-        "plots": ("plots", "expectations/expe_plots.json", 3),
-        "standing": ("tree_staging", "expectations/expe_standing.json", 4),
-        "lying": ("tree_staging", "expectations/expe_lying.json", 5),
-        "cwd": ("cwd", "expectations/expe_cwd.json", 6),
-        "metadata": ("metadata", "expectations/expe_metadata.json", 6)
+        "sites": ("sites", "expectations/expe_sites.json", 1, None),
+        "design": ("site_design", "expectations/expe_site_design.json", 2, ["composed_site_id"]),
+        "plots": ("plots", "expectations/expe_plots.json", 3, ["composed_site_id", "inventory_year", "inventory_id"]),
+        "standing": ("tree_staging", "expectations/expe_standing.json", 4, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no"]),
+        "lying": ("tree_staging", "expectations/expe_lying.json", 5, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no"]),
+        "cwd": ("cwd", "expectations/expe_cwd.json", 6, []),
+        "metadata": ("metadata", "expectations/expe_metadata.json", 7, [])
     }
 
 def determine_configs(file_path, df_columns):
@@ -195,7 +204,7 @@ def determine_configs(file_path, df_columns):
     base_filename = os.path.basename(file_path).lower()
     
     # Find the appropriate table name and config file based on the filename
-    for key, (table_name, config_file, _) in table_mapping.items():
+    for key, (table_name, config_file, _, _) in table_mapping.items():
         if key in base_filename:
             # Load the config file
             with open(config_file, 'r') as f:
@@ -220,7 +229,7 @@ def determine_configs(file_path, df_columns):
             core_columns_string = ", ".join(ordered_core_attributes)
             #write_and_log(f"SQL command columns: {core_columns_string}")
             
-            return table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping
+            return table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping
 
     # If no match is found, return a high priority number so it is processed last
     return None, None, None, None, None, 99
@@ -230,7 +239,7 @@ def determine_order(file):
     
     base_filename = file.name.lower()
     
-    for key, (_, _, order) in table_mapping.items():
+    for key, (_, _, order, _) in table_mapping.items():
         if key in base_filename:
             return (file, order)  # Return file and assigned order
 

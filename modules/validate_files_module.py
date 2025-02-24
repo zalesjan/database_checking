@@ -210,20 +210,21 @@ def plausibility_test(df, xpi, base_columns):
 
 
 #check dbh for smaller than threshold
-def tree_smaller_than_threshold():
-    dbh_smaller_than_threshold = """
+def tree_smaller_than_threshold(institute):
+    dbh_smaller_than_threshold = f"""
     SELECT t.composed_site_id, t.record_id, t.dbh, d.standing_alive_threshold 
-    FROM public.tree t
+    FROM public.trees t
     JOIN public.plots p
         ON unique_plot_id = p.record_id
     JOIN site_design d
         ON site_design_record_id = d.record_id
     where t.dbh < d.standing_alive_threshold
+    and p.composed_site_id like %s;
     """
-    dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold)
+    _, dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold, (f"%{institute}%",))
     
     if dbh_smaller_than_threshold is not None:
-        print(dbh_smaller_than_threshold)
+        write_and_log("Data Preview: Test of DBH smaller than threshold")
         st.dataframe(dbh_smaller_than_threshold)  # Display the result as a DataFrame
     else:
         st.write("No tree_smaller_than_threshold or an error occurred.")

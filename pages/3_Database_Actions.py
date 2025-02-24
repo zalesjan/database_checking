@@ -1,6 +1,6 @@
 import streamlit as st
 from modules.database_utils import password_check, load_data_with_copy_command, do_query, move_data_to_tree, tree_staging_id
-from modules.dataframe_actions import etl_process_df, df_from_uploaded_file
+from modules.dataframe_actions import etl_process_df, df_from_uploaded_file, table_mapping
 from modules.logs import write_and_log
     
 # Page Name
@@ -14,7 +14,7 @@ if password_check():
     if uploaded_files:
         for file in uploaded_files:
             df, uploaded_file_path = df_from_uploaded_file(file)
-            table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping = etl_process_df(file.name, df.columns, df)
+            table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(file.name, df.columns, df)
 
             # COPY TO DATABASE
             if st.button("Copy Data to Database"):
@@ -42,3 +42,15 @@ if password_check():
     if st.button("Run that helper operation"):  
         do_query(selected_function)
         write_and_log(f"{helper_operation_key}  is at its end.")
+    
+    # 🔹 Single Button to Copy All Files to Database at the End
+    
+    if st.button("Truncate all tables and restart numbering"):
+        
+        for table in table_mapping:
+            table_to_delete = table_mapping.get(table, (None, None, None, None))[0]
+            truncate_all_tables = f"""truncate {table_to_delete} CASCADE"""
+            restart_numbering = f"""ALTER SEQUENCE {table_to_delete}_record_id_seq RESTART WITH 1;"""
+            print(table_to_delete)
+            do_query(truncate_all_tables, (table_to_delete,))
+            do_query(restart_numbering, (table_to_delete,))
