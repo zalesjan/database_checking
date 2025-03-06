@@ -54,3 +54,7 @@ if password_check():
             print(table_to_delete)
             do_query(truncate_all_tables, (table_to_delete,))
             do_query(restart_numbering, (table_to_delete,))
+        truncate_trees = f"""truncate trees"""
+        do_query(truncate_trees)
+        restart_numbering_trees = f"""ALTER SEQUENCE trees_record_id_seq RESTART WITH 1;"""
+        do_query(restart_numbering_trees)

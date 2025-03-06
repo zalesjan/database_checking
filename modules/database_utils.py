@@ -5,6 +5,7 @@ import io
 import logging
 from datetime import datetime
 import pandas as pd
+import re
 from modules.logs import write_and_log
 from modules.dataframe_actions import determine_copy_command_for_ecology_with_ignore, determine_copy_command_with_ignore, prepare_dataframe_for_copy
 
@@ -68,13 +69,13 @@ basic_query_main_query = f"""
 
 tree_staging_id =f"""
         UPDATE tree_staging t
-        SET unique_plot_id = p.record_id
+        SET plot_record_id = p.record_id
         FROM plots p
         WHERE 
             t.composed_site_id = p.composed_site_id
             AND t.inventory_year = p.inventory_year
+            AND t.inventory_id = p.inventory_id
             AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
-            AND t.circle_no IS NOT DISTINCT FROM p.circle_no
             and p.composed_site_id like %s;
         """
 
@@ -85,8 +86,8 @@ cwd_id =f"""
         WHERE 
             t.composed_site_id = p.composed_site_id
             AND t.inventory_year = p.inventory_year
+            AND t.inventory_id = p.inventory_id
             AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
-            AND t.circle_no IS NOT DISTINCT FROM p.circle_no
             and p.composed_site_id like %s;
         """
 
@@ -96,12 +97,16 @@ plots_id =f"""
         FROM site_design d
         WHERE 
             p.composed_site_id = d.composed_site_id
+            AND p.inventory_id = d.inventory_id
             AND p.inventory_year = d.inventory_year
+            AND d.circle_radius IS NOT DISTINCT FROM p.circle_radius
+            AND d.circle_no IS NOT DISTINCT FROM p.circle_no
 			and d.composed_site_id like %s;
         """
+
 site_design_id =f"""
         UPDATE site_design d
-		SET unique_site_id = s.record_id
+		SET site_record_id = s.record_id
 		FROM sites s
 		WHERE 
 			d.composed_site_id = s.composed_site_id
@@ -116,9 +121,23 @@ move_data_to_tree = """
         """
 truncate_tree_staging = """truncate tree_staging"""
 
-composed_site_id_sites = """
-        UPDATE sites
-        SET composed_site_id = CONCAT(institute, '__', site_id, '__', reserve_name, '__', wildcard_id); 
+show_counts_of_all = f"""
+        SELECT
+        
+        COUNT(DISTINCT sites.institute)AS institutes,
+        COUNT (DISTINCT sites.record_id) AS count_sites,
+        COUNT(DISTINCT site_design.record_id) AS count_site_designs,
+        COUNT(DISTINCT plots.record_id)AS count_plots,
+        COUNT(DISTINCT trees.record_id)AS count_trees
+        
+        FROM
+            public.sites
+        JOIN
+            public.site_design ON sites.record_id = site_design.site_record_id
+        JOIN
+            public.plots ON site_design.record_id = plots.site_design_record_id
+        JOIN
+            public.trees ON plots.record_id = trees.plot_record_id    
         """
 
 # Set up logging
@@ -219,6 +238,14 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
     """
     copy_command = determine_copy_command_with_ignore(file_path, ordered_core_attributes, extra_columns, table_name, ignored_columns)
 
+    # ✅ Convert problematic columns BEFORE preparing DataFrame
+    numeric_columns = ['year_reserve', 'year_abandonment']  # Add other columns if needed
+    
+    for col in numeric_columns:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')  # Convert to numeric (NaN for errors)
+            df[col] = df[col].fillna(0).astype(int)  # Fill NaN and convert to int
+
     # Prepare the DataFrame to include `extended_attributes`
     df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, ignored_columns)
     # Connect to the database and execute the COPY command
@@ -230,10 +257,38 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
     try:
         cur = conn.cursor()
         
-        # Use COPY command to insert the data
+        # Count rows before insertion
+        cur.execute(f"SELECT COUNT(*) FROM public.{table_name};")
+        initial_row_count = cur.fetchone()[0]
+        print(f"🔹 Rows in `{table_name}` before insertion: {initial_row_count}")
+        st.write(f"🔹 Rows in `{table_name}` before insertion: {initial_row_count}")
+
+        # Convert DataFrame to a CSV-like object for COPY
         copy_file_like_object = io.StringIO(df_ready.to_csv(index=False, sep='\t', header=True, na_rep='\\N'))
+
+        # Execute COPY command
         cur.copy_expert(copy_command, copy_file_like_object)
 
+        # Count rows after insertion
+        cur.execute(f"SELECT COUNT(*) FROM public.{table_name};")
+        final_row_count = cur.fetchone()[0]
+        print(f"🔹 Rows in `{table_name}` after insertion: {final_row_count}")
+        st.write(f"🔹 Rows in `{table_name}` after insertion: {final_row_count}")
+
+        # Calculate number of rows inserted
+        rows_inserted = final_row_count - initial_row_count
+
+        if rows_inserted == len(df_ready):
+            success_message = f"✅ Successfully loaded {rows_inserted} rows into `{table_name}`"
+        elif rows_inserted > 0:
+            success_message = f"⚠️ Only {rows_inserted} out of {len(df_ready)} rows were inserted into `{table_name}`"
+        else:
+            success_message = f"❌ No rows were inserted into `{table_name}`"
+
+        print(success_message)
+        st.write(success_message)
+
+        # Commit transaction
         conn.commit()
         print(f"Data successfully loaded into {table_name}")
 
@@ -321,7 +376,29 @@ def composed_site_id_to_all():
                 t.wildcard_id = s.wildcard_id; 
                 """
         do_query(composed_site_id_update_in_all_from_sites)
-    
+
+def sanitize_institute_name(institute):
+    # Replace all spaces and hyphens (or multiple spaces) with a single underscore
+    sanitized = re.sub(r"[\s\-]+", "_", institute.strip().lower())
+    return sanitized
+
+def setup_logins(institute, sanitized_institute, table_name):
+
+    force_rls = f"""ALTER TABLE IF EXISTS {table_name} FORCE ROW LEVEL SECURITY;"""
+    do_query(force_rls)
+
+    grant_select = f"""GRANT SELECT ON TABLE {table_name} TO {sanitized_institute};"""
+    do_query(grant_select)
+
+    create_rls_policy = f"""
+            CREATE POLICY {sanitized_institute}_policy
+                ON {table_name}
+                FOR SELECT
+                TO {sanitized_institute}
+                USING (composed_site_id like %s);
+                """
+    do_query(create_rls_policy, (f"%{institute}%",))
+
 """
 # Authenticate with Google Sheets API
 def google_sheets_auth():

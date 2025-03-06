@@ -28,6 +28,9 @@
         "volume":  {
         "alternatives": ["volume"],
         "non_null": true
+        },
+        "inventory_id":  {
+        "alternatives": ["inventory_id"]
         }
       }, 
     "required_non_null_columns": [

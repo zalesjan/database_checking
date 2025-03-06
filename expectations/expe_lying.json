@@ -92,10 +92,6 @@
         "alternatives": ["geom", "geometry", "boundaries", "geom_field"],
         "non_null": true
       },
-      "institute": {
-          "alternatives": ["institute", "institute_name", "inst"],
-          "non_null": true
-      },
       "wildcard_sub_id": {
           "alternatives": ["wildcard_sub_id", "wildcard_id", "sub_id"],
           "non_null": true
@@ -116,7 +112,6 @@
       "full_scientific",
       "length",
       "geom",
-      "institute",
       "wildcard_id"
     ]
   }

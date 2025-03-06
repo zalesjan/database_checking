@@ -44,11 +44,11 @@ def find_ignored_columns(uploaded_file_name, df, extra_columns):
     unique_key_prefix = f"{uploaded_file_name}_"
 
     df_ignore = df.copy()  # Create a copy to avoid modifying df
+    df_ignore.columns = df_ignore.columns.str.lower() #columns names converted to lowercase
     df_ignore.replace("\\N", np.nan, inplace=True)  # Replace \N only in the copy
 
     # Identify ignored columns automatically
     ignored_columns = [col for col in extra_columns if df_ignore[col].isna().all()]  # All values are NaN
-    
 
     st.warning(f"These {len(ignored_columns)} ignored_columns were found")
     st.write(f"{ignored_columns}")
@@ -85,8 +85,10 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
     Returns:
         pd.DataFrame: Modified DataFrame ready for COPY command.
     """
+    
     # Step 1: Create a copy of the DataFrame to avoid slice issues
     df_for_copy = df.copy()
+    df_for_copy.columns = df_for_copy.columns.str.lower() #columns names converted to lowercase
     
     # Step 2: Rename columns to their primary names using `column_mapping`
     df_for_copy = df_for_copy.rename(columns=column_mapping)
@@ -102,6 +104,7 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
     
     # Create a new column `extended_attributes` by combining extra columns into a JSON string
     if extra_columns:
+        df.columns = df.columns.str.lower() #columns names converted to lowercase
         df_for_copy.loc[:, 'extended_attributes'] = df.loc[:, extra_columns].apply(lambda row: json.dumps(row.dropna().to_dict()), axis=1)
     
     df_for_copy = df_for_copy.copy()
@@ -188,9 +191,9 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
 table_mapping = {
         "sites": ("sites", "expectations/expe_sites.json", 1, None),
         "design": ("site_design", "expectations/expe_site_design.json", 2, ["composed_site_id"]),
-        "plots": ("plots", "expectations/expe_plots.json", 3, ["composed_site_id", "inventory_year", "inventory_id"]),
-        "standing": ("tree_staging", "expectations/expe_standing.json", 4, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no"]),
-        "lying": ("tree_staging", "expectations/expe_lying.json", 5, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no"]),
+        "plots": ("plots", "expectations/expe_plots.json", 3, ["composed_site_id", "inventory_year", "inventory_id", "circle_radius"]),
+        "standing": ("tree_staging", "expectations/expe_standing.json", 4, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"]),
+        "lying": ("tree_staging", "expectations/expe_lying.json", 5, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"]),
         "cwd": ("cwd", "expectations/expe_cwd.json", 6, []),
         "metadata": ("metadata", "expectations/expe_metadata.json", 7, [])
     }

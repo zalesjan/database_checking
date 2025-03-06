@@ -1,4 +1,6 @@
 import streamlit as st
+from modules.database_utils import do_query, show_counts_of_all
+from modules.logs import write_and_log
 
 # Set the title and a brief introduction
 st.title("Wildcard/EuFoRIA Data Validation")
@@ -60,3 +62,13 @@ st.write(
     *Enjoy using the app!*
     """
 )
+
+if st.button("show how many sites, plots and trees we have"):           
+    _, show_counts_of_all_df = do_query(show_counts_of_all)
+    if show_counts_of_all_df is not None:
+        # Define the filename
+        show_counts_of_all_file = f"temp_dir/show_counts_of_all_file.csv"
+        # Save the DataFrame as a CSV file
+        show_counts_of_all_df.to_csv(show_counts_of_all_file, index=False)
+        write_and_log("This many sites, plots and trees we have:")
+        st.dataframe(show_counts_of_all_df)  # Display the result as a DataFrame

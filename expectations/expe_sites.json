@@ -5,7 +5,7 @@
         "non_null": true
       },
       "site_id": {
-        "alternatives": ["site_id", "siteid", "site-id", "site_id"],
+        "alternatives": ["site_id", "siteid", "site-id", "site_id", "res_id_inst"],
         "non_null": true
       },
       "reserve_name": {
@@ -40,7 +40,7 @@
         "non_null": true
       },
       "eea_fortype": {
-        "alternatives": ["eea_forest_type", "eea"],
+        "alternatives": ["eea_forest_type", "eea", "eea_fortype"],
         "non_null": true
       },
       "year_reserve": {
@@ -53,6 +53,10 @@
       },
       "biodiversity": {
         "alternatives": ["biodiversity", "any_biodiv"],
+        "non_null": true
+      },
+      "contact": {
+        "alternatives": ["contact"],
         "non_null": true
       }
     },

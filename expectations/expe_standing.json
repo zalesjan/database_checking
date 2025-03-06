@@ -87,6 +87,10 @@
         "geom": {
             "alternatives": ["wkt_geom", "geom", "geometry", "boundaries", "geom_field"],
             "non_null": true
+        },
+        "volume": {
+            "alternatives": ["volume"],
+            "non_null": true
         }
     },
     "required_non_null_columns": [
@@ -101,7 +105,6 @@
         "height",
         "geom",
         "dbh",
-        "institute",
         "wildcard_id"
     ]
 }
