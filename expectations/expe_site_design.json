@@ -5,7 +5,7 @@
         "non_null": true
       },
       "composed_site_id":  {
-        "alternatives": ["composed_site_id", "composed_id"],
+        "alternatives": ["composed_site_id", "composed_id", "composite_site_id"],
         "non_null": true
       },
       "site_name": {

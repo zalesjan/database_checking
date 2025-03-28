@@ -254,9 +254,12 @@ def dataframe_for_tree_integrity(df):
     are returned only when applicable, while the other continues processing.
     """
 
+    # Filter to only include rows where 'consistent_id' is "Y"
+    df = df[df['consistent_id'] == "Y"].copy()
+    
     # Define the columns needed for the integrity checks
     columns_to_check = ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 
-                        'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay']
+                        'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay', 'consistent_id']
     
     # Filter only existing columns in df
     existing_columns = [col for col in columns_to_check if col in df.columns]

@@ -159,15 +159,7 @@ def set_base_columns(df, xpi):
     return base_columns
 
 def plausibility_test(df, xpi, base_columns):
-    # Initialize results dictionary for storing integrity issues
-    #integrity_issues = {
-    #    'dbh_reduction': None,
-    #    'position_reversal': None,
-    #    'life_status_reversal': None,
-    #    'integrity_reversal': None,
-    #    'decay_inconsistency': None}
-    #   integrity_issues = {}
-
+    
 
     # Initialize empty results
     dbh_reduction = None
@@ -181,47 +173,49 @@ def plausibility_test(df, xpi, base_columns):
     
         # Drop NaN values
         df.dropna(subset=['dbh', 'previous_dbh'], inplace=True)
+        consistent_id_filter = df['consistent_id'] == "Y"
         life_filter = df['life'] == "A"  
         dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
-        dbh_reduction = df[life_filter & dbh_criteria & df['previous_dbh'].notna()][base_columns]
-
+        dbh_reduction = df[consistent_id_filter & life_filter & dbh_criteria & df['previous_dbh'].notna()][base_columns]
+    else:
+        consistent_id_filter = df['consistent_id'] == "Y"
     # Check Position Change: Position changes from L to S
     if {'previous_position', 'position'}.issubset(df.columns):
         position_criteria = (df['previous_position'] == 'L') & (df['position'] == 'S')
-        position_reversal = df[position_criteria][base_columns]
+        position_reversal = df[consistent_id_filter & position_criteria][base_columns]
 
     # Check Life Status Change: Life status changes from D to A
     if {'previous_life', 'life'}.issubset(df.columns):
         life_criteria = (df['previous_life'] == 'D') & (df['life'] == 'A')
-        life_status_reversal = df[life_criteria][base_columns]
+        life_status_reversal = df[life_criteria & consistent_id_filter][base_columns]
 
     # Check Integrity Change: Integrity changes from F to C
     if {'previous_integrity', 'integrity', 'life'}.issubset(df.columns):
         death_filter = df['life'] == "D"
         integrity_criteria = (df['previous_integrity'] == 'F') & (df['integrity'] == 'C')
-        integrity_reversal = df[integrity_criteria & death_filter & df['previous_integrity'].notna()][base_columns]
+        integrity_reversal = df[consistent_id_filter & integrity_criteria & death_filter & df['previous_integrity'].notna()][base_columns]
 
     # Check Decay: Decay values should increase or stay the same (0 = no decay, 5 = complete decay)
     if {'decay', 'previous_decay'}.issubset(df.columns):
         decay_criteria = df['decay'] < df['previous_decay']
-        decay_inconsistency = df[decay_criteria & df['previous_decay'].notna()][base_columns]
+        decay_inconsistency = df[consistent_id_filter & decay_criteria & df['previous_decay'].notna()][base_columns]
 
     return dbh_reduction, position_reversal, life_status_reversal, integrity_reversal, decay_inconsistency
 
 
 #check dbh for smaller than threshold
-def tree_smaller_than_threshold(institute):
+def tree_smaller_than_threshold(institute, role):
     dbh_smaller_than_threshold = f"""
     SELECT t.composed_site_id, t.record_id, t.dbh, d.standing_alive_threshold 
     FROM public.trees t
     JOIN public.plots p
-        ON unique_plot_id = p.record_id
+        ON plot_record_id = p.record_id
     JOIN site_design d
         ON site_design_record_id = d.record_id
     where t.dbh < d.standing_alive_threshold
     and p.composed_site_id like %s;
     """
-    _, dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold, (f"%{institute}%",))
+    _, dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold, role, (f"%{institute}%",))
     
     if dbh_smaller_than_threshold is not None:
         write_and_log("Data Preview: Test of DBH smaller than threshold")
@@ -298,7 +292,15 @@ def check_missing_in_census(df, base_columns):
     print(missing_in_census_integrity_issues)
     return {"missing_in_census": missing_in_census_integrity_issues}
 
-
+def find_previous_record_id_columns_from_mapping(table_mapping, table_name):
+    for key, (mapped_table_name, _, _, previous_record_id_columns) in table_mapping.items():    # Find the correct key in table_mapping that corresponds to `table_name`
+        if mapped_table_name == table_name:  # Check if the table_name matches
+            break  # Stop looping when the correct match is found
+    else:
+        previous_record_id_columns = None  # If no match is found, set to None
+    
+    return previous_record_id_columns
+    
 # Function to send results via email
 def send_email(results, statistics, file, email, xpi):
     yag = yagmail.SMTP(EMAIL_USER, EMAIL_PASSWORD)

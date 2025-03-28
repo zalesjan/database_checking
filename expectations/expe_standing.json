@@ -2,7 +2,7 @@
 {
     "expected_columns": {
         "composed_site_id":  {
-        "alternatives": ["composed_site_id", "composed_id"],
+        "alternatives": ["composed_site_id", " composite_site_id"],
         "non_null": true
         }, "site_id": {
             "alternatives": ["site_id", "siteid", "site-id", "siteidentifier"],
@@ -71,7 +71,7 @@
             "is_date": true
         },
         "full_scientific": {
-            "alternatives": ["full_scientific", "tree_species"]
+            "alternatives": ["full_scientific", "tree_species", "species"]
         },
         "dbh": {
             "alternatives": ["dbh", "dbh_cm", "dbh_m", "dbh_mm"],

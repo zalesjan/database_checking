@@ -2,7 +2,7 @@
 {
     "expected_columns": {
         "composed_site_id":  {
-        "alternatives": ["composed_site_id", "composed_id"],
+        "alternatives": ["composed_site_id", "composite_site_id"],
         "non_null": true
         }, 
         "lpi_id": {

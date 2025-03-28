@@ -7,7 +7,7 @@ from datetime import datetime
 import pandas as pd
 import re
 from modules.logs import write_and_log
-from modules.dataframe_actions import determine_copy_command_for_ecology_with_ignore, determine_copy_command_with_ignore, prepare_dataframe_for_copy
+from modules.dataframe_actions import determine_copy_command_for_ecology_with_ignore, determine_copy_command_with_ignore, prepare_dataframe_for_copy, table_mapping
 
 #queries used in helper operations
 get_wildcard_db_id = "SELECT composed_site_id, record_id FROM public.sites"
@@ -38,7 +38,7 @@ basic_query_calc_basal_area = f"""
             (pi() *power(dbh/20, 2) ) AS basal_area
         FROM public.trees t
         JOIN
-            public.plots ON t.unique_plot_id = plots.record_id
+            public.plots ON t.plot_record_id = plots.record_id
         WHERE
             t.composed_site_id like %s;
         """
@@ -113,9 +113,9 @@ site_design_id =f"""
             and s.composed_site_id like %s;
         """
 move_data_to_tree = """
-        INSERT INTO public.trees (composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no)
+        INSERT INTO public.trees (composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume)
         SELECT 
-            composed_site_id, unique_plot_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no
+            composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume
         FROM
             public.tree_staging;
         """
@@ -151,6 +151,14 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
 )
 
+def select_role():
+    # Define available roles
+    available_roles = ["moje", "vukoz", "postgres_old", "postgres_dev"]
+
+    # Create a select box for role selection
+    selected_role = st.selectbox("Select PostgreSQL Role:", available_roles, index=3)
+    return selected_role
+
 def password_check():
     # Password input field, check the password entered by the user is correct
     #if not st.session_state["authenticated"]:
@@ -163,9 +171,7 @@ def password_check():
     else:
         st.warning("Please enter the correct password to proceed.")
 
-def get_db_connection():
-    #["postgres"], ["vukoz"]
-    role = "postgres_EuFoRIa_trees_db"
+def get_db_connection(role):
     try:
         conn = psycopg2.connect(
             host=st.secrets[role]["DB_HOST"],
@@ -180,7 +186,7 @@ def get_db_connection():
         print("An error occurred while connecting to the database:", str(e))
         return None
 
-def do_query(query, placeholders=None):
+def do_query(query, role, placeholders=None):
     """
     Executes a SQL query with optional placeholders.
     
@@ -191,7 +197,7 @@ def do_query(query, placeholders=None):
     Returns:
         tuple: (affected_rows, result_df) - the latter for SELECTs, the former for other than SELECT (UPDATE, INSERT, etc.)
     """
-    conn = get_db_connection()
+    conn = get_db_connection(role)
     if conn is None:
         st.error("Database connection failed.")
         return None, None  # Ensure function always returns a tuple
@@ -223,7 +229,7 @@ def do_query(query, placeholders=None):
         st.error(f"An error occurred: {e}")
         return None, None  # Ensure function always returns two values
 
-def load_data_with_copy_command(df, file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping):
+def load_data_with_copy_command(df, file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping, role):
     """
     Load data using the constructed COPY command, including JSONB data.
     
@@ -250,7 +256,7 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
     df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, ignored_columns)
     # Connect to the database and execute the COPY command
 
-    conn = get_db_connection()
+    conn = get_db_connection(role)
     if conn is None:
         return
 
@@ -300,7 +306,20 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
         cur.close()
         conn.close()
 
-def load_ecological_data_with_copy_command(df, file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns):
+def truncate_all_tables(role):
+    for table in table_mapping:
+        table_to_delete = table_mapping.get(table, (None, None, None, None))[0]
+        truncate_all_tables = f"""truncate {table_to_delete} CASCADE"""
+        restart_numbering = f"""ALTER SEQUENCE {table_to_delete}_record_id_seq RESTART WITH 1;"""
+        print(table_to_delete)
+        do_query(truncate_all_tables, role, (table_to_delete,))
+        do_query(restart_numbering, role, (table_to_delete,))
+    truncate_trees = f"""truncate trees"""
+    do_query(truncate_trees, role)
+    restart_numbering_trees = f"""ALTER SEQUENCE trees_record_id_seq RESTART WITH 1;"""
+    do_query(restart_numbering_trees, role)
+            
+def load_ecological_data_with_copy_command(df, file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, role):
     """
     Load data using the constructed COPY command, including JSONB data.
     
@@ -319,7 +338,7 @@ def load_ecological_data_with_copy_command(df, file_path, table_name, ordered_co
     df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, ignored_columns)
     st.write(f'DF to upload:', df_ready.head())
     # Connect to the database and execute the COPY command
-    conn = get_db_connection()
+    conn = get_db_connection(role)
     if conn is None:
         return
 
@@ -346,25 +365,25 @@ def load_ecological_data_with_copy_command(df, file_path, table_name, ordered_co
         conn.close()
 
 
-def foreign_key_mismatch(table_name, unique_current_PK_value, previous_table_name, previous_table_count):    
+def foreign_key_mismatch(table_name, unique_current_FK_value, previous_table_name, previous_table_count):    
     # Compare foreign key counts against the primary key count in the previous table
-    if previous_table_count != unique_current_PK_value:
+    if previous_table_count != unique_current_FK_value:
         st.warning(
-            f"⚠️ Foreign key validation failed: {table_name} has {unique_current_PK_value} unique foreign keys, "
+            f"⚠️ Foreign key validation failed: {table_name} has {unique_current_FK_value} unique foreign keys, "
             f"but {previous_table_name} has {previous_table_count} primary keys."
         )
         write_and_log(
-            f"⚠️ Foreign key validation failed: {table_name} has {unique_current_PK_value} unique foreign keys, "
+            f"⚠️ Foreign key validation failed: {table_name} has {unique_current_FK_value} unique foreign keys, "
             f"but {previous_table_name} has {previous_table_count} primary keys."
         )
         return True
     else:
         st.success(
-            f"⚠️ Foreign key validation passed: {table_name} has {unique_current_PK_value} unique foreign keys, "
-            f"has also {previous_table_name} has also {previous_table_count} primary keys."
+            f"⚠️ Foreign key validation passed: {table_name} has {unique_current_FK_value} unique foreign keys, "
+            f"and {previous_table_name} has also {previous_table_count} primary keys."
         )
 
-def composed_site_id_to_all():
+def composed_site_id_to_all(role):
     tables_for_composed_site_id_to_all = ["tree_staging", "site_design", "plots"]
     for table_name in tables_for_composed_site_id_to_all:
         composed_site_id_update_in_all_from_sites = f"""
@@ -375,20 +394,20 @@ def composed_site_id_to_all():
                 t.site_name = s.reserve_name
                 t.wildcard_id = s.wildcard_id; 
                 """
-        do_query(composed_site_id_update_in_all_from_sites)
+        do_query(composed_site_id_update_in_all_from_sites, role)
 
 def sanitize_institute_name(institute):
     # Replace all spaces and hyphens (or multiple spaces) with a single underscore
     sanitized = re.sub(r"[\s\-]+", "_", institute.strip().lower())
     return sanitized
 
-def setup_logins(institute, sanitized_institute, table_name):
+def setup_logins(institute, sanitized_institute, table_name, role):
 
     force_rls = f"""ALTER TABLE IF EXISTS {table_name} FORCE ROW LEVEL SECURITY;"""
-    do_query(force_rls)
+    do_query(force_rls, role)
 
     grant_select = f"""GRANT SELECT ON TABLE {table_name} TO {sanitized_institute};"""
-    do_query(grant_select)
+    do_query(grant_select, role)
 
     create_rls_policy = f"""
             CREATE POLICY {sanitized_institute}_policy
@@ -397,7 +416,7 @@ def setup_logins(institute, sanitized_institute, table_name):
                 TO {sanitized_institute}
                 USING (composed_site_id like %s);
                 """
-    do_query(create_rls_policy, (f"%{institute}%",))
+    do_query(create_rls_policy, role, (f"%{institute}%",))
 
 """
 # Authenticate with Google Sheets API
