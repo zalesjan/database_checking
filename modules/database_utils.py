@@ -254,8 +254,8 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
 
     # Prepare the DataFrame to include `extended_attributes`
     df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, ignored_columns)
+    
     # Connect to the database and execute the COPY command
-
     conn = get_db_connection(role)
     if conn is None:
         return
@@ -337,6 +337,7 @@ def load_ecological_data_with_copy_command(df, file_path, table_name, ordered_co
     # Prepare the DataFrame to include `extended_attributes`
     df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, ignored_columns)
     st.write(f'DF to upload:', df_ready.head())
+    
     # Connect to the database and execute the COPY command
     conn = get_db_connection(role)
     if conn is None:
