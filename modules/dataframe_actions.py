@@ -41,6 +41,7 @@ def etl_process_df(uploaded_file_name, df_columns, df):
     return table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping
 
 def find_ignored_columns(uploaded_file_name, df, extra_columns):
+    
     unique_key_prefix = f"{uploaded_file_name}_"
 
     df_ignore = df.copy()  # Create a copy to avoid modifying df
@@ -73,7 +74,7 @@ def find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_at
         st.write("No extra columns found.")
     return extra_columns if extra_columns else []
 
-def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, ignored_columns=None):
+def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns=None):
     """
     Prepares the DataFrame to merge core data with a JSONB column `extended_attributes` for COPY command.
     
@@ -85,22 +86,37 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
     Returns:
         pd.DataFrame: Modified DataFrame ready for COPY command.
     """
-    
-    # Step 1: Create a copy of the DataFrame to avoid slice issues
+    if table_name == "biodiversity":
+        _, _, _, _, json_column_mapping = table_mapping["biodiversity"]
+    else:
+        json_column_mapping = None
+
+    # Step 1: Lowercase and rename columns using column_mapping
     df_for_copy = df.copy()
-    df_for_copy.columns = df_for_copy.columns.str.lower() #columns names converted to lowercase
+    df_for_copy.columns = df_for_copy.columns.str.lower()
+    df_for_copy.rename(columns=column_mapping, inplace=True)
     
-    # Step 2: Rename columns to their primary names using `column_mapping`
-    df_for_copy = df_for_copy.rename(columns=column_mapping)
-    
-    #Step 3: Remove columns to ignore from both core and extra columns
+    #Step 2: Remove columns to ignore from both core and extra columns
     if ignored_columns:
         ordered_core_attributes = [col for col in ordered_core_attributes if col not in ignored_columns]
         extra_columns = [col for col in extra_columns if col not in ignored_columns]
 
-    # Step 4: Keep only the necessary columns (both core and extra)
+    # Step 3: Keep only the necessary columns (both core and extra)
     df_for_copy = df_for_copy[ordered_core_attributes].copy()
     st.write("Data Preview:", df_for_copy.head())
+
+    # Step 3: Build JSON fields and assign them
+    if json_column_mapping:
+        for json_field, source_columns in json_column_mapping.items():
+            # Lowercase source columns for consistency
+            source_columns_lower = [col.lower() for col in source_columns if col.lower() in df_for_copy.columns]
+
+            if source_columns_lower:
+                df_for_copy[json_field] = df_for_copy[source_columns_lower].apply(
+                    lambda row: json.dumps({k: v for k, v in row.dropna().to_dict().items()}), axis=1
+                )
+                # Drop those columns after conversion
+                df_for_copy.drop(columns=source_columns_lower, inplace=True)
     
     # Create a new column `extended_attributes` by combining extra columns into a JSON string
     if extra_columns:
@@ -164,15 +180,28 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
     Returns:
         copy_command (str): The COPY command for inserting data.
     """
+    if table_name == "biodiversity":
+        _, _, _, _, json_column_mapping = table_mapping["biodiversity"]
+    else:
+        json_column_mapping = {}
+
     if ignored_columns is None:
         ignored_columns = []
-
+    
+    # Flatten all JSON-related columns into a set of columns to exclude
+    json_mapped_columns = set()
+    
     # Filter out ignored columns
     filtered_columns = [col for col in df_columns if col not in ignored_columns]
 
     # Map the filtered DataFrame columns to core attributes
     core_attributes = [col for col in filtered_columns if col not in extra_columns]
     
+    if json_mapped_columns:
+        # Add JSONB fields to be included in the COPY command
+        json_fields = list(json_column_mapping.keys())
+        columns_string = ", ".join(core_attributes + json_fields)
+
     if extra_columns:
         # Join core columns into a comma-separated string
         columns_string = ", ".join(core_attributes + ["extended_attributes"])
@@ -189,13 +218,22 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
     return copy_command
 
 table_mapping = {
-        "sites": ("sites", "expectations/expe_sites.json", 1, None),
-        "design": ("site_design", "expectations/expe_site_design.json", 2, ["composed_site_id"]),
-        "plots": ("plots", "expectations/expe_plots.json", 3, ["composed_site_id", "inventory_year", "inventory_id", "circle_radius"]),
-        "standing": ("tree_staging", "expectations/expe_standing.json", 4, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"]),
-        "lying": ("tree_staging", "expectations/expe_lying.json", 5, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"]),
-        "cwd": ("cwd", "expectations/expe_cwd.json", 6, []),
-        "metadata": ("metadata", "expectations/expe_metadata.json", 7, [])
+        "sites": ("sites", "expectations/expe_sites.json", 1, None, None),
+        "design": ("site_design", "expectations/expe_site_design.json", 2, ["composed_site_id"], None),
+        "plots": ("plots", "expectations/expe_plots.json", 3, ["composed_site_id", "inventory_year", "inventory_id", "circle_radius"], None),
+        "standing": ("tree_staging", "expectations/expe_standing.json", 4, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
+        "lying": ("tree_staging", "expectations/expe_lying.json", 5, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
+        "cwd": ("cwd", "expectations/expe_cwd.json", 6, [], None),
+        "metadata": ("metadata", "expectations/expe_metadata.json", 7, [], None),
+        "biodiversity": ("biodiversity", "expectations/expe_biodiversity.json", 8, [], {
+            "authors": [
+                "author1", "author2"
+            ],
+            "taxonomy_details": [
+                "genus", "species", "taxon_author", "family", "group"
+            ],
+            "addional_taxonomy": [
+                "order", "class", "phylum"]})
     }
 
 def determine_configs(file_path, df_columns):
@@ -207,7 +245,7 @@ def determine_configs(file_path, df_columns):
     base_filename = os.path.basename(file_path).lower()
     
     # Find the appropriate table name and config file based on the filename
-    for key, (table_name, config_file, _, _) in table_mapping.items():
+    for key, (table_name, config_file, _, _, _) in table_mapping.items():
         if key in base_filename:
             # Load the config file
             with open(config_file, 'r') as f:
@@ -242,7 +280,7 @@ def determine_order(file):
     
     base_filename = file.name.lower()
     
-    for key, (_, _, order, _) in table_mapping.items():
+    for key, (_, _, order, _, _) in table_mapping.items():
         if key in base_filename:
             return (file, order)  # Return file and assigned order
 
