@@ -71,7 +71,7 @@
             "is_date": true
         },
         "full_scientific": {
-            "alternatives": ["full_scientific", "tree_species", "species"]
+            "alternatives": ["full_scientific", "species"]
         },
         "dbh": {
             "alternatives": ["dbh", "dbh_cm", "dbh_m", "dbh_mm"],

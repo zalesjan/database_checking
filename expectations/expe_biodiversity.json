@@ -1,0 +1,78 @@
+{
+    "expected_columns": {
+      "record_id_original": {
+        "alternatives": ["record_id_orig", "record_id"],
+      },
+      "full_scientific": {
+          "alternatives": ["full_scientific", "taxon", "species"],
+          "non_null": true
+      },
+      taxonomy_details jsonb,
+	    addional_taxonomy jsonb,
+      "composed_site_id":  {
+        "alternatives": ["composed_site_id", "composed_id", "composite_site_id"],
+        "non_null": true
+      },
+
+      "	prp_id": {
+        "alternatives": ["prp_id", "prp", "plocha", "plocha_id"],
+        "non_null": true
+      },
+      "institute": {
+        "alternatives": ["institute", "institution", "institute_name", "institute"]
+      
+      },
+      "inventory_year": {
+        "alternatives": ["inventory_year", "inventoryyear", "inventory-year", "inv_year"],
+        "non_null": true,
+        "is_numeric": true,
+        "range": [1900, "current_year"]
+      },
+      "inventory_type": {
+        "alternatives": ["inventory_type", "inventorytype", "inventory-type", "inv_type"],
+      },
+      "inventory_id": {
+        "alternatives": ["inventory_id"]
+
+
+      },
+      "authors": {
+        "alternatives": ["authors", "autor", "autoři"],
+        "is_numeric": true
+      },
+      abundance_chart character varying COLLATE pg_catalog."default",
+      abundance_numeric_value double precision,
+      abundance_text_value character varying COLLATE pg_catalog."default",
+
+      red_list_chart character varying COLLATE pg_catalog."default",
+	red_list_value character varying COLLATE pg_catalog."default",
+	red_list_numeric_value double precision,
+
+  "tree_id": {
+            "alternatives": ["tree_id", "treeid", "tree-id", "treeidentifier"],
+            "non_null": true
+        },
+        "stem_id": {
+            "alternatives": ["stem_id", "stemid", "stem-id", "stemidentifier"],
+            "is_numeric": true
+        },
+        "piece_id": {
+            "alternatives": ["piece_id", "pieceid", "piece-id", "pieceidentifier"],
+            "is_numeric": true
+        },
+
+        group_specific_tree jsonb,
+        group_specific_prp jsonb,
+        group_specific_species jsonb,
+    },
+    "required_non_null_columns": [
+      "composed_site_id",
+      "site_id",
+      "site_name",
+      "wildcard_sub_id",
+      "inventory_year",
+      "circle_no",
+      "geom"
+    ]
+  }
+  
