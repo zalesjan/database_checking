@@ -8,18 +8,18 @@ st.title("DATA ACCESS CONDITIONS")
 st.title("Access to the WILDCARD Relational PostgreSQL Database of tree inventory data from the network of permanent research plots in European set-aside forests ")
 st.write(
     """
-WILDCARD DENDROMETRIC DATABASE ACCESS
+**A. WILDCARD DENDROMETRIC DATABASE ACCESS**
 
-Here we specify the conditions under which the Data Curator shall provide the on-line READ ONLY access to the whole content of the WILDCARD Relational PostgreSQL dendrometric database to the Data User. 
+1. Here we specify the conditions under which the Data Curator shall provide the on-line ‘read only’ access to the content of the WILDCARD Relational PostgreSQL dendrometric database to the Data User
 
-And/Or 
- 
-The Data Curator shall carry-out data queries and provide specific data assemblies on the demand of the Data User """
+
+And/Or
+
+
+2. The Data Curator shall carry-out data queries and provide specific data assemblies on the demand of the Data User
 )
 
-# Section: Key Functionalities
-st.header("TERMS and CONDITIONS of DATA USE")
-st.markdown("""
+**B. TERMS and CONDITIONS of DATA USE**
  
 
 1. The data User has rights to use the data only within the framework of the WILDCARD HE project exclusively for purposes specified in the EuFoRIa WILDCARD Project Proposal Parts A and B.
@@ -47,7 +47,7 @@ On this date, the data curator must terminate the data access to the Data User. 
 
 
 
-C PUBLICATIONS
+**C. PUBLICATIONS**
 
 
 1. If the use of data results in publication, the original data provider is involved in the publication process and updated on a regular basis. It is up to the main author of a publication to decide if the provided data can be integrated in the planned scientific study.
@@ -64,7 +64,7 @@ C PUBLICATIONS
 
 
 
-D LIABILITY
+**D. LIABILITY**
 
 
 1. The data are based on the current state of scientific knowledge. However, there is no liability on the completeness, usefulness or accuracy of the data.  
