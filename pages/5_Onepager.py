@@ -74,7 +74,7 @@ if password_check():
                         #print(f"🔹 Current Table Order for {table_name}: {current_table_order}")
                         
                         previous_table_name = None  # Default in case there's no previous table
-                        for key, (true_table_name, _, order, _) in table_mapping.items():
+                        for key, (true_table_name, _, order, _, _) in table_mapping.items():
                             if order == current_table_order - 1:  # Find the previous table (order - 1)
                                 previous_table_name = true_table_name
                                 # FOR DEBUGGING print(f"🔹 Previous Table Found: {previous_table_name}")

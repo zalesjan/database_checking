@@ -86,46 +86,60 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
     Returns:
         pd.DataFrame: Modified DataFrame ready for COPY command.
     """
-    if table_name == "biodiversity":
-        _, _, _, _, json_column_mapping = table_mapping["biodiversity"]
-    else:
-        json_column_mapping = None
+    json_column_mapping = {}
 
     # Step 1: Lowercase and rename columns using column_mapping
     df_for_copy = df.copy()
     df_for_copy.columns = df_for_copy.columns.str.lower()
     df_for_copy.rename(columns=column_mapping, inplace=True)
-    
-    #Step 2: Remove columns to ignore from both core and extra columns
+
+    # Step 2: Remove ignored columns from core and extra
     if ignored_columns:
         ordered_core_attributes = [col for col in ordered_core_attributes if col not in ignored_columns]
         extra_columns = [col for col in extra_columns if col not in ignored_columns]
 
-    # Step 3: Keep only the necessary columns (both core and extra)
-    df_for_copy = df_for_copy[ordered_core_attributes].copy()
-    st.write("Data Preview:", df_for_copy.head())
+    # Step 3: Determine JSON field mapping
+    # Find the matching key in table_mapping where the value[0] == table_name
+    for key, value in table_mapping.items():
+        if value[0] == table_name:
+            json_column_mapping = value[4] if len(value) > 4 and isinstance(value[4], dict) else {}
+            break
 
-    # Step 3: Build JSON fields and assign them
+    # Step 4: Build and remove dedicated JSON fields
+    used_in_json_fields = []
     if json_column_mapping:
         for json_field, source_columns in json_column_mapping.items():
-            # Lowercase source columns for consistency
-            source_columns_lower = [col.lower() for col in source_columns if col.lower() in df_for_copy.columns]
-
-            if source_columns_lower:
-                df_for_copy[json_field] = df_for_copy[source_columns_lower].apply(
-                    lambda row: json.dumps({k: v for k, v in row.dropna().to_dict().items()}), axis=1
+            available_cols = [col for col in source_columns if col in df_for_copy.columns]
+            if available_cols:
+                df_for_copy[json_field] = df_for_copy[available_cols].apply(
+                    lambda row: json.dumps({k: v for k, v in row.dropna().to_dict().items()}),
+                    axis=1
                 )
-                # Drop those columns after conversion
-                df_for_copy.drop(columns=source_columns_lower, inplace=True)
-    
-    # Create a new column `extended_attributes` by combining extra columns into a JSON string
-    if extra_columns:
-        df.columns = df.columns.str.lower() #columns names converted to lowercase
-        df_for_copy.loc[:, 'extended_attributes'] = df.loc[:, extra_columns].apply(lambda row: json.dumps(row.dropna().to_dict()), axis=1)
-    
-    df_for_copy = df_for_copy.copy()
+                df_for_copy.drop(columns=available_cols, inplace=True)
+                used_in_json_fields.extend(available_cols)
+
+    # Step 5: Create extended_attributes (excluding those used in JSON fields)
+    final_extra_columns = [col for col in extra_columns if col not in used_in_json_fields]
+    if final_extra_columns:
+        df_for_copy['extended_attributes'] = df[final_extra_columns].apply(
+            lambda row: json.dumps(row.dropna().to_dict()), axis=1
+        )
+
+    # Step 6: Select final output columns
+    all_required_columns = ordered_core_attributes.copy()
+    if json_column_mapping:
+        all_required_columns += list(json_column_mapping.keys())
+    if final_extra_columns:
+        all_required_columns.append("extended_attributes")
+
+    df_for_copy = df_for_copy[[col for col in all_required_columns if col in df_for_copy.columns]].copy()
+
+    st.write("✅ Final DataFrame preview before COPY:")
+    st.dataframe(df_for_copy.head())
 
     return df_for_copy
+
+
 
 
 def determine_copy_command_for_ecology_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
@@ -180,16 +194,24 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
     Returns:
         copy_command (str): The COPY command for inserting data.
     """
-    if table_name == "biodiversity":
-        _, _, _, _, json_column_mapping = table_mapping["biodiversity"]
-    else:
-        json_column_mapping = {}
+    json_column_mapping = {}
+
+    # Find the matching key in table_mapping where the value[0] == table_name
+    for key, value in table_mapping.items():
+        if value[0] == table_name:
+            json_column_mapping = value[4] if len(value) > 4 and isinstance(value[4], dict) else {}
+            break
 
     if ignored_columns is None:
         ignored_columns = []
-    
+
+    json_fields = []
+
     # Flatten all JSON-related columns into a set of columns to exclude
     json_mapped_columns = set()
+    if json_column_mapping:
+        for columns in json_column_mapping.values():
+            json_mapped_columns.update(columns)  # Adds all columns from each json field
     
     # Filter out ignored columns
     filtered_columns = [col for col in df_columns if col not in ignored_columns]
@@ -197,16 +219,26 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
     # Map the filtered DataFrame columns to core attributes
     core_attributes = [col for col in filtered_columns if col not in extra_columns]
     
-    if json_mapped_columns:
+    if json_column_mapping:
         # Add JSONB fields to be included in the COPY command
         json_fields = list(json_column_mapping.keys())
         columns_string = ", ".join(core_attributes + json_fields)
+    print(core_attributes)
+    print(extra_columns)
+    print(json_fields)
+    print(json_mapped_columns)
+
+
+    # 2. Exclude those from extra_columns
+    extra_columns = [col for col in extra_columns if col not in json_mapped_columns and col not in ignored_columns]
+
+    print(extra_columns)
 
     if extra_columns:
         # Join core columns into a comma-separated string
-        columns_string = ", ".join(core_attributes + ["extended_attributes"])
+        columns_string = ", ".join(core_attributes + json_fields + ["extended_attributes"])
     else:
-        columns_string = ", ".join(core_attributes)
+        columns_string = ", ".join(core_attributes + json_fields)
 
     # Create the COPY command to include core columns and JSONB `extended_attributes`
     copy_command = f"""
@@ -219,22 +251,24 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
 
 table_mapping = {
         "sites": ("sites", "expectations/expe_sites.json", 1, None, None),
-        "design": ("site_design", "expectations/expe_site_design.json", 2, ["composed_site_id"], None),
+        "design": ("site_design", "expectations/expe_site_design.json", 2, ["composed_site_id"], {"plots_list": ["plots_list"]}),
         "plots": ("plots", "expectations/expe_plots.json", 3, ["composed_site_id", "inventory_year", "inventory_id", "circle_radius"], None),
         "standing": ("tree_staging", "expectations/expe_standing.json", 4, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
         "lying": ("tree_staging", "expectations/expe_lying.json", 5, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
         "cwd": ("cwd", "expectations/expe_cwd.json", 6, [], None),
         "metadata": ("metadata", "expectations/expe_metadata.json", 7, [], None),
-        "biodiversity": ("biodiversity", "expectations/expe_biodiversity.json", 8, [], {
-            "authors": [
-                "author1", "author2"
-            ],
-            "taxonomy_details": [
-                "genus", "species", "taxon_author", "family", "group"
-            ],
-            "addional_taxonomy": [
-                "order", "class", "phylum"]})
-    }
+        "biodiversity": (
+        "biodiversity", 
+        "expectations/expe_biodiversity.json", 
+        8, 
+        [], 
+        {
+            "authors": ["author1", "author2"],
+            "addional_taxonomy": ["order", "class", "phylum", "taxonomy_value"],
+            "group_specific_tree": ["tree", "stem", "part", "prp", "group_specific_tree_species_count", "group_specific_tree_total_cover", "total_cover", "species_count", "note"]
+        }
+    )
+}
 
 def determine_configs(file_path, df_columns):
     
@@ -245,8 +279,8 @@ def determine_configs(file_path, df_columns):
     base_filename = os.path.basename(file_path).lower()
     
     # Find the appropriate table name and config file based on the filename
-    for key, (table_name, config_file, _, _, _) in table_mapping.items():
-        if key in base_filename:
+    for table_acronym, (table_name, config_file, _, _, _) in table_mapping.items():
+        if table_acronym in base_filename:
             # Load the config file
             with open(config_file, 'r') as f:
                 config = json.load(f)
