@@ -15,11 +15,26 @@ def df_from_uploaded_file(uploaded_file):
     with open(uploaded_file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Load the file into a DataFrame
-    df = pd.read_csv(uploaded_file, delimiter='\t')
-    st.header(f'{uploaded_file.name}')
-    st.write("Data Preview:", df.head())
-    return df, uploaded_file_path
+    try:
+        if uploaded_file.name.endswith(".xlsx") or uploaded_file.name.endswith(".xls"):
+            df = pd.read_excel(uploaded_file)
+        else:
+            # Try common encodings
+            for encoding in ['utf-8', 'ISO-8859-1', 'windows-1250', 'latin1']:
+                try:
+                    df = pd.read_csv(uploaded_file, encoding=encoding, delimiter="\t")
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                st.error("❌ Could not decode CSV. Try saving it in UTF-8 or upload as Excel.")
+                return None, None
+
+        return df, uploaded_file.name
+
+    except Exception as e:
+        st.error(f"📛 Error reading file: {e}")
+        return None, None
 
 def df_from_detected_file(file_path):
     # Ensure the temporary directory exists
@@ -75,6 +90,44 @@ def find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_at
     return extra_columns if extra_columns else []
 
 def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns=None):
+     """
+     Prepares the DataFrame to merge core data with a JSONB column `extended_attributes` for COPY command.
+     
+     Args:
+         df (pd.DataFrame): Original DataFrame with core and extra columns.
+         core_attributes (list): List of core attributes to retain.
+         extra_columns (list): List of extra columns to combine into JSONB.
+ 
+     Returns:
+         pd.DataFrame: Modified DataFrame ready for COPY command.
+     """
+ 
+     # Step 1: Create a copy of the DataFrame to avoid slice issues
+     df_for_copy = df.copy()
+     df_for_copy.columns = df_for_copy.columns.str.lower() #columns names converted to lowercase
+ 
+     # Step 2: Rename columns to their primary names using `column_mapping`
+     df_for_copy = df_for_copy.rename(columns=column_mapping)
+ 
+     #Step 3: Remove columns to ignore from both core and extra columns
+     if ignored_columns:
+         ordered_core_attributes = [col for col in ordered_core_attributes if col not in ignored_columns]
+         extra_columns = [col for col in extra_columns if col not in ignored_columns]
+ 
+     # Step 4: Keep only the necessary columns (both core and extra)
+     df_for_copy = df_for_copy[ordered_core_attributes].copy()
+     st.write("Data Preview:", df_for_copy.head())
+ 
+     # Create a new column `extended_attributes` by combining extra columns into a JSON string
+     if extra_columns:
+         df.columns = df.columns.str.lower() #columns names converted to lowercase
+         df_for_copy.loc[:, 'extended_attributes'] = df.loc[:, extra_columns].apply(lambda row: json.dumps(row.dropna().to_dict()), axis=1)
+ 
+     df_for_copy = df_for_copy.copy()
+ 
+     return df_for_copy
+
+def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns=None):
     """
     Prepares the DataFrame to merge core data with a JSONB column `extended_attributes` for COPY command.
     
@@ -98,6 +151,8 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
         ordered_core_attributes = [col for col in ordered_core_attributes if col not in ignored_columns]
         extra_columns = [col for col in extra_columns if col not in ignored_columns]
 
+        print(f"ℹ️from DF: extra_columns {extra_columns}")
+    
     # Step 3: Determine JSON field mapping
     # Find the matching key in table_mapping where the value[0] == table_name
     for key, value in table_mapping.items():
@@ -111,15 +166,36 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
         for json_field, source_columns in json_column_mapping.items():
             available_cols = [col for col in source_columns if col in df_for_copy.columns]
             if available_cols:
-                df_for_copy[json_field] = df_for_copy[available_cols].apply(
-                    lambda row: json.dumps({k: v for k, v in row.dropna().to_dict().items()}),
-                    axis=1
-                )
+
+                # 🧠 Special case for "authors"
+                if json_field == "authors":
+                    def parse_authors(row):
+                        authors = []
+                        for col in available_cols:
+                            val = row.get(col)
+                            if pd.notna(val):
+                                # Split on semicolon, strip whitespace
+                                split_names = [name.strip() for name in str(val).split(';') if name.strip()]
+                                authors.extend(split_names)
+                        return json.dumps(authors)
+
+                    df_for_copy[json_field] = df_for_copy[available_cols].apply(parse_authors, axis=1)
+
+                else:
+                    # Generic case for other JSON fields
+                    df_for_copy[json_field] = df_for_copy[available_cols].apply(
+                        lambda row: json.dumps({k: v for k, v in row.dropna().to_dict().items()}),
+                        axis=1
+                    )
+
                 df_for_copy.drop(columns=available_cols, inplace=True)
                 used_in_json_fields.extend(available_cols)
-
+        
+    print(f"ℹ️from DF: used_in_json_fields {used_in_json_fields}")
     # Step 5: Create extended_attributes (excluding those used in JSON fields)
     final_extra_columns = [col for col in extra_columns if col not in used_in_json_fields]
+    print(f"ℹ️from DF: extra_columns {final_extra_columns}")
+   
     if final_extra_columns:
         df_for_copy['extended_attributes'] = df[final_extra_columns].apply(
             lambda row: json.dumps(row.dropna().to_dict()), axis=1
@@ -138,8 +214,6 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
     st.dataframe(df_for_copy.head())
 
     return df_for_copy
-
-
 
 
 def determine_copy_command_for_ecology_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
@@ -183,6 +257,44 @@ def determine_copy_command_for_ecology_with_ignore(file_path, df_columns, extra_
 def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
     """
     Determines the core attributes and constructs the COPY command including extended attributes.
+     
+     Args:
+         file_path (str): Path to the file being processed.
+         df_columns (list): List of columns in the DataFrame.
+         extra_columns (list): List of extra columns to be stored as JSONB.
+         table_name (str): Name of the table to insert data into.
+         ignored_columns (list, optional): List of columns to be ignored from the DataFrame.
+     
+     Returns:
+         copy_command (str): The COPY command for inserting data.
+    """
+    if ignored_columns is None:
+         ignored_columns = []
+ 
+    # Filter out ignored columns
+    filtered_columns = [col for col in df_columns if col not in ignored_columns]
+ 
+     # Map the filtered DataFrame columns to core attributes
+    core_attributes = [col for col in filtered_columns if col not in extra_columns]
+ 
+    if extra_columns:
+         # Join core columns into a comma-separated string
+         columns_string = ", ".join(core_attributes + ["extended_attributes"])
+    else:
+         columns_string = ", ".join(core_attributes)
+ 
+    # Create the COPY command to include core columns and JSONB `extended_attributes`
+    copy_command = f"""
+     COPY public.{table_name} 
+     ({columns_string}) 
+     FROM STDIN WITH DELIMITER E'\t' CSV HEADER NULL '\\N';"""
+ 
+    write_and_log(f'copy_command: {copy_command}')
+    return copy_command
+ 
+def biodiversity_determine_copy_command_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
+    """
+    Determines the core attributes and constructs the COPY command including extended attributes.
     
     Args:
         file_path (str): Path to the file being processed.
@@ -223,16 +335,17 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
         # Add JSONB fields to be included in the COPY command
         json_fields = list(json_column_mapping.keys())
         columns_string = ", ".join(core_attributes + json_fields)
-    print(core_attributes)
-    print(extra_columns)
-    print(json_fields)
-    print(json_mapped_columns)
+    print(f"ℹ️from copy command: json_column_mapping {json_column_mapping}")
+    print(f"ℹ️from copy command: core_attributes {core_attributes}")
+    print(f"ℹ️from copy command: extra_columns {extra_columns}")
+    print(f"ℹ️from copy command: json_fields {json_fields}")
+    print(f"ℹ️from copy command: json_mapped_columns {json_mapped_columns}")
 
 
     # 2. Exclude those from extra_columns
     extra_columns = [col for col in extra_columns if col not in json_mapped_columns and col not in ignored_columns]
 
-    print(extra_columns)
+    print(f"ℹ️from copy command: extra_columns {extra_columns}")
 
     if extra_columns:
         # Join core columns into a comma-separated string
@@ -249,6 +362,22 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
     write_and_log(f'copy_command: {copy_command}')
     return copy_command
 
+common_biodiversity_config = (
+    "biodiversity", 
+    "expectations/expe_biodiversity.json", 
+    8, 
+    [], 
+    {
+        "authors": ["author1", "author2", "authors"],
+        "addional_taxonomy": ["order", "class", "phylum", "taxonomy_value"],
+        "group_specific_tree": [
+            "tree", "stem", "part", "prp",
+            "group_specific_tree_species_count", "group_specific_tree_total_cover",
+            "group_specific_tree_note_tree", "total_cover", "species_count", "note", "group_specific_species_loc_in_plot"
+        ]
+    }
+)
+
 table_mapping = {
         "sites": ("sites", "expectations/expe_sites.json", 1, None, None),
         "design": ("site_design", "expectations/expe_site_design.json", 2, ["composed_site_id"], {"plots_list": ["plots_list"]}),
@@ -257,17 +386,10 @@ table_mapping = {
         "lying": ("tree_staging", "expectations/expe_lying.json", 5, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
         "cwd": ("cwd", "expectations/expe_cwd.json", 6, [], None),
         "metadata": ("metadata", "expectations/expe_metadata.json", 7, [], None),
-        "biodiversity": (
-        "biodiversity", 
-        "expectations/expe_biodiversity.json", 
-        8, 
-        [], 
-        {
-            "authors": ["author1", "author2"],
-            "addional_taxonomy": ["order", "class", "phylum", "taxonomy_value"],
-            "group_specific_tree": ["tree", "stem", "part", "prp", "group_specific_tree_species_count", "group_specific_tree_total_cover", "total_cover", "species_count", "note"]
-        }
-    )
+        # Multiple aliases for the same biodiversity configuration
+        "biodiversity": common_biodiversity_config,
+        "bryo": common_biodiversity_config,
+        "malaco": common_biodiversity_config,
 }
 
 def determine_configs(file_path, df_columns):

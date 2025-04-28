@@ -15,7 +15,11 @@ if password_check():
     # Multi-file uploader
     if "uploaded_files" not in st.session_state:
         st.session_state["uploaded_files"] = []    
-    uploaded_files = st.file_uploader("Upload CSV files", type=["csv", "txt"], accept_multiple_files=True)
+    uploaded_files = st.file_uploader(
+        "Upload files (CSV, TXT, or Excel)",
+        type=["csv", "txt", "xls", "xlsx"],
+        accept_multiple_files=True
+)
     
     if uploaded_files:
         # Determine processing order and Sort files by order 
