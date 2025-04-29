@@ -27,7 +27,7 @@ def do_action_after_role_check(role, do_action, *args, **kwargs):
 
     reset_confirmation_if_needed()
 
-    if role == 'vukoz':
+    if role == 'moje':
         if not st.session_state['ready_to_truncate']:
             if st.button("⚡ Request truncation (Sensitive Operation)"):
                 st.session_state['ready_to_truncate'] = True
