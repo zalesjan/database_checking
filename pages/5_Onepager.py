@@ -7,11 +7,86 @@ from modules.database_utils import truncate_tree_staging, move_data_to_tree, tre
 from modules.database_utils import basic_query_calc_basal_area, basic_query_main_query, basic_query_no_plots_per_year, truncate_no_plots_per_year, truncate_calc_basal_area
 from psycopg2 import sql
 
+def process_copy_all_files(sorted_files, role):
+    previous_table_name = None  # Keep track of the last uploaded table
+    previous_table_count = None  # Store the count of unique record_IDs in the previous table
+    
+    for file in sorted_files:
+        # ETL
+        df, uploaded_file_path = df_from_uploaded_file(file)
+        table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(file.name, df.columns, df)
+        
+        # COPY DATA TO DATABASE
+        load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping, role)
+        write_and_log(f"Data copy of {file.name} to the database is complete.")
+        
+        # Store Institute if it's "sites"
+        if table_name == "sites":
+            institute = df["institute"].iloc[0]
+            sites_updated_rows = len(df["institute"])
+            previous_table_count = len(df["institute"])
+            
+            sanitized_institute = sanitize_institute_name(institute)
+            create_role = f"""CREATE ROLE {sanitized_institute} WITH LOGIN PASSWORD %s;"""
+            do_query(create_role, role, (f"%{sanitized_institute}%",))
+
+            setup_logins(institute, sanitized_institute, table_name, role)
+            
+
+        if table_name == "site_design":
+            design_updated_rows, _ = do_query(site_design_id, role, (f"%{institute}%",) )
+            write_and_log(f"✅ Updated {design_updated_rows} rows in site_design with {previous_table_count} unique site values, and {sites_updated_rows} rows in sites.")
+            
+            setup_logins(institute, sanitized_institute, table_name, role)
+
+        if table_name == "plots":
+            plots_updated_rows, _ = do_query(plots_id, role, (f"%{institute}%",))
+            write_and_log(f"✅ Updated {plots_updated_rows} rows in plots and {design_updated_rows} rows in site_design.")
+
+            setup_logins(institute, sanitized_institute, table_name, role)
+
+        if table_name == "cwd":
+            cwd_updated_rows, _=do_query(cwd_id, role, (f"%{institute}%",))
+            write_and_log(f"✅ Updated {cwd_updated_rows} rows in cwd and {plots_updated_rows} rows in plots.")
+        
+            setup_logins(institute, sanitized_institute, table_name, role)
+
+        if table_name == "tree_staging":
+            tree_staging_updated_rows, _ =do_query(tree_staging_id, role, (f"%{institute}%",))
+            write_and_log(f"✅ Updated {tree_staging_updated_rows} rows in tree_staging and {plots_updated_rows} rows in plots.")
+            
+            moved_data_to_tree_from_staging, _ = do_query(move_data_to_tree, role)
+            do_query(truncate_tree_staging, role)
+            write_and_log(f"✅ {moved_data_to_tree_from_staging} rows moved from tree_staging to tree, PS: tree_staging was truncated and is therefore ready for next tree table")
+
+            tree_smaller_than_threshold(institute, role) 
+            write_and_log(f"Help functions of {file.name} is complete.")
+
+            setup_logins(institute, sanitized_institute, table_name, role)
+            
+    st.success("All files copied to the database successfully.")    
+    do_query(truncate_calc_basal_area, role)
+    basic_query_calc_basal_area_df, _ = do_query(basic_query_calc_basal_area, role, (f"%{institute}%",))
+    do_query(truncate_no_plots_per_year, role)
+    basic_query_no_plots_per_year_df, _ = do_query(basic_query_no_plots_per_year, role, (f"%{institute}%",))
+    _, basic_query_main_query_df = do_query(basic_query_main_query, role)
+    if basic_query_main_query_df is not None:
+        # Define the filename
+        basic_query_file = f"temp_dir/basic_query_file_{institute}.csv"
+        # Save the DataFrame as a CSV file
+        basic_query_main_query_df.to_csv(basic_query_file, index=False)
+        print(f"✅ Data saved successfully to {basic_query_file}")
+        write_and_log("Test of basic queries: (numTrees and Basal area/Ha); DBH min/max/mean was saved to file ")
+        st.dataframe(basic_query_main_query_df)  # Display the result as a DataFrame
+    else:
+        write_and_log("⚠️ No data was returned from the basic query:\n{basic_query_main_query}.")
+        
 # Page Name
 st.title("5_Onepager")
 
 if password_check():
     role = select_role()
+    
     # Multi-file uploader
     if "uploaded_files" not in st.session_state:
         st.session_state["uploaded_files"] = []    
@@ -137,80 +212,24 @@ if password_check():
         
         # 🔹 Single Button to Copy All Files to Database at the End
         if st.button("Copy all files to Database"):
-            previous_table_name = None  # Keep track of the last uploaded table
-            previous_table_count = None  # Store the count of unique record_IDs in the previous table
-            
-            for file in sorted_files:
-                # ETL
-                df, uploaded_file_path = df_from_uploaded_file(file)
-                table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(file.name, df.columns, df)
-                   
-                
-                # COPY DATA TO DATABASE
-                do_action_after_role_check(role, load_data_with_copy_command, df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping, role)
-                write_and_log(f"Data copy of {file.name} to the database is complete.")
-                
-                # Store Institute if it's "sites"
-                if table_name == "sites":
-                    institute = df["institute"].iloc[0]
-                    sites_updated_rows = len(df["institute"])
-                    previous_table_count = len(df["institute"])
-                    
-                    sanitized_institute = sanitize_institute_name(institute)
-                    create_role = f"""CREATE ROLE {sanitized_institute} WITH LOGIN PASSWORD %s;"""
-                    do_query(create_role, role, (f"%{sanitized_institute}%",))
+            if role == "moje":  # This role requires confirmation before proceeding
+                st.session_state['upload_confirmation_needed'] = True
+                st.rerun()
 
-                    setup_logins(institute, sanitized_institute, table_name, role)
-                    
-
-                if table_name == "site_design":
-                    design_updated_rows, _ = do_query(site_design_id, role, (f"%{institute}%",) )
-                    write_and_log(f"✅ Updated {design_updated_rows} rows in site_design with {previous_table_count} unique site values, and {sites_updated_rows} rows in sites.")
-                    
-                    setup_logins(institute, sanitized_institute, table_name, role)
-
-                if table_name == "plots":
-                    plots_updated_rows, _ = do_query(plots_id, role, (f"%{institute}%",))
-                    write_and_log(f"✅ Updated {plots_updated_rows} rows in plots and {design_updated_rows} rows in site_design.")
-
-                    setup_logins(institute, sanitized_institute, table_name, role)
-
-                if table_name == "cwd":
-                    cwd_updated_rows, _=do_query(cwd_id, role, (f"%{institute}%",))
-                    write_and_log(f"✅ Updated {cwd_updated_rows} rows in cwd and {plots_updated_rows} rows in plots.")
-                
-                    setup_logins(institute, sanitized_institute, table_name, role)
-
-                if table_name == "tree_staging":
-                    tree_staging_updated_rows, _ =do_query(tree_staging_id, role, (f"%{institute}%",))
-                    write_and_log(f"✅ Updated {tree_staging_updated_rows} rows in tree_staging and {plots_updated_rows} rows in plots.")
-                    
-                    moved_data_to_tree_from_staging, _ = do_query(move_data_to_tree, role)
-                    do_query(truncate_tree_staging, role)
-                    write_and_log(f"✅ {moved_data_to_tree_from_staging} rows moved from tree_staging to tree, PS: tree_staging was truncated and is therefore ready for next tree table")
-
-                    tree_smaller_than_threshold(institute, role) 
-                    write_and_log(f"Help functions of {file.name} is complete.")
-
-                    setup_logins(institute, sanitized_institute, table_name, role)
-                    
-            st.success("All files copied to the database successfully.")    
-            do_query(truncate_calc_basal_area, role)
-            basic_query_calc_basal_area, _ = do_query(basic_query_calc_basal_area, role, (f"%{institute}%",))
-            do_query(truncate_no_plots_per_year, role)
-            basic_query_no_plots_per_year_df, _ = do_query(basic_query_no_plots_per_year, role, (f"%{institute}%",))
-            _, basic_query_main_query_df = do_query(basic_query_main_query, role)
-            if basic_query_main_query_df is not None:
-                # Define the filename
-                basic_query_file = f"temp_dir/basic_query_file_{institute}.csv"
-                # Save the DataFrame as a CSV file
-                basic_query_main_query_df.to_csv(basic_query_file, index=False)
-                print(f"✅ Data saved successfully to {basic_query_file}")
-                write_and_log("Test of basic queries: (numTrees and Basal area/Ha); DBH min/max/mean was saved to file ")
-                st.dataframe(basic_query_main_query_df)  # Display the result as a DataFrame
             else:
-                write_and_log("⚠️ No data was returned from the basic query:\n{basic_query_main_query}.")
+                # ✅ Role is safe, immediately proceed
+                process_copy_all_files(sorted_files, role)
 
+        # 🔹 If confirmation is needed (for sensitive role like "vukoz")
+        if st.session_state.get('upload_confirmation_needed', False):
+            st.warning("⚠️ You are using the production role 'vukoz'. Please confirm before uploading data!")
+            confirm = st.checkbox("Yes, I confirm I want to proceed with uploading to PROD", key="confirm_prod_upload")
+
+            if confirm:
+                st.success("Confirmation received. Now you can start uploading.")
+                if st.button("🚀 FINAL CONFIRM: Really copy all files to Database"):
+                    process_copy_all_files(sorted_files, role)
+                    st.session_state['upload_confirmation_needed'] = False  # Reset after success
             
         if st.button("Crap, this upload went terribly wrong, I want to delete all data from this institute"):
             for file in sorted_files:
