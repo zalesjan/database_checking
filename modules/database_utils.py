@@ -153,7 +153,7 @@ logging.basicConfig(
 
 def select_role():
     # Define available roles
-    available_roles = ["moje", "vukoz", "postgres_old", "postgres_dev"]
+    available_roles = ["moje", "vukoz", "postgres_old", "postgres_dev", "VUKOZ-raw_data"]
 
     # Create a select box for role selection
     selected_role = st.selectbox("Select PostgreSQL Role:", available_roles, index=3)

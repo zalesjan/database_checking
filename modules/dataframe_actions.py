@@ -46,7 +46,7 @@ def df_from_detected_file(file_path):
     return df
 
 def etl_process_df(uploaded_file_name, df_columns, df):
-
+    st.header(f"{uploaded_file_name}")
     #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
     table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping = determine_configs(uploaded_file_name, df_columns)
     
@@ -162,35 +162,74 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
 
     # Step 4: Build and remove dedicated JSON fields
     used_in_json_fields = []
+
     if json_column_mapping:
         for json_field, source_columns in json_column_mapping.items():
             available_cols = [col for col in source_columns if col in df_for_copy.columns]
-            if available_cols:
+            if not available_cols:
+                continue
 
-                # 🧠 Special case for "authors"
-                if json_field == "authors":
-                    def parse_authors(row):
-                        authors = []
-                        for col in available_cols:
-                            val = row.get(col)
-                            if pd.notna(val):
-                                # Split on semicolon, strip whitespace
-                                split_names = [name.strip() for name in str(val).split(';') if name.strip()]
-                                authors.extend(split_names)
-                        return json.dumps(authors)
+            # 🧠 Special case for authors: split on semicolons
+            if json_field == "authors":
+                def parse_authors(row):
+                    authors = []
+                    for col in available_cols:
+                        val = row.get(col)
+                        if pd.notna(val):
+                            authors.extend([name.strip() for name in str(val).split(';') if name.strip()])
+                    return json.dumps(authors)
 
-                    df_for_copy[json_field] = df_for_copy[available_cols].apply(parse_authors, axis=1)
+                df_for_copy[json_field] = df_for_copy[available_cols].apply(parse_authors, axis=1)
+                
+         
+            # ✅ All other fields (generic JSON handling)
+            if json_field not in ["authors", "additional_taxonomy"]:
+                df_for_copy[json_field] = df_for_copy[available_cols].apply(
+                    lambda row: json.dumps({k: v for k, v in row.dropna().to_dict().items()}),
+                    axis=1
+                )
+            df_for_copy.drop(columns=available_cols, inplace=True)
+            used_in_json_fields.extend(available_cols)
 
-                else:
-                    # Generic case for other JSON fields
-                    df_for_copy[json_field] = df_for_copy[available_cols].apply(
-                        lambda row: json.dumps({k: v for k, v in row.dropna().to_dict().items()}),
-                        axis=1
-                    )
+    # Step 5: Special handling for parentheses in full_scientific
+    # 🧠 Special handling if "full_scientific" column has parentheses
+    if "full_scientific" in df_for_copy.columns:
+        def extract_brackets(val):
+            if pd.notna(val) and '(' in val and ')' in val:
+                extra = val[val.find('(')+1 : val.find(')')].strip()
+                main_name = val[:val.find('(')].strip()
+                return main_name, extra
+            elif pd.notna(val):
+                return val.strip(), None
+            else:
+                return None, None
 
-                df_for_copy.drop(columns=available_cols, inplace=True)
-                used_in_json_fields.extend(available_cols)
+        full_scientific_cleaned = []
+        taxonomy_extras = []
+
+        for _, row in df_for_copy.iterrows():
+            main_name, extra = extract_brackets(row["full_scientific"])
+            full_scientific_cleaned.append(main_name)
+            taxonomy_extras.append(extra)
+
+        df_for_copy["full_scientific"] = full_scientific_cleaned
+
+        # Merge taxonomy_extras into existing or new additional_taxonomy
+        # does not work well, it creates an extra column additional_taxonomy
         
+        if "additional_taxonomy" in df_for_copy.columns:
+            existing = df_for_copy["additional_taxonomy"].apply(json.loads)
+            df_for_copy["taxonomy_extras"] = [
+                json.dumps({**e, "taxonomy_extras": [extra]} if extra else e)
+                for e, extra in zip(existing, taxonomy_extras)
+            ]
+        else:
+            df_for_copy["taxonomy_extras"] = [
+                json.dumps({"taxonomy_extras": [extra]} if extra else {})
+                for extra in taxonomy_extras
+            ]
+
+            
     print(f"ℹ️from DF: used_in_json_fields {used_in_json_fields}")
     # Step 5: Create extended_attributes (excluding those used in JSON fields)
     final_extra_columns = [col for col in extra_columns if col not in used_in_json_fields]
@@ -205,6 +244,8 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
     all_required_columns = ordered_core_attributes.copy()
     if json_column_mapping:
         all_required_columns += list(json_column_mapping.keys())
+    if "additional_taxonomy" in df_for_copy.columns:
+        all_required_columns.append("additional_taxonomy")
     if final_extra_columns:
         all_required_columns.append("extended_attributes")
 

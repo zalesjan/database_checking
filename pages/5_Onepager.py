@@ -16,6 +16,12 @@ def process_copy_all_files(sorted_files, role):
         df, uploaded_file_path = df_from_uploaded_file(file)
         table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(file.name, df.columns, df)
         
+        if role == "VUKOZ-raw_data":
+            load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping, role)
+            write_and_log(f"Data copy of {file.name} to the database is complete.")
+            #create_raw_data_table(file.name, df.columns, df)
+            #uploaded_file_path = 
+
         # COPY DATA TO DATABASE
         load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping, role)
         write_and_log(f"Data copy of {file.name} to the database is complete.")

@@ -65,7 +65,7 @@
         "is_date": true
       },
       "full_scientific": {
-        "alternatives": ["full_scientific", "species"]
+        "alternatives": ["full_scientific", "species", "tree_species"]
       },
       "diameter_1": {
         "alternatives": ["diameter_1", "d_1", "d1_mm"],

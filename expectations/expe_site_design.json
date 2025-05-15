@@ -28,7 +28,7 @@
       "inventory_id": {
         "alternatives": ["inventory_id"]
       },
-      "no_plots": {
+      "plots": {
         "alternatives": ["no_plots", "noplots", "no-plots", "number_of_plots"],
         "is_numeric": true
       },

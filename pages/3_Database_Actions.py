@@ -11,7 +11,14 @@ if password_check():
 
     # FILE UPLOAD and ETL
     # Multi-file uploader
-    uploaded_files = st.file_uploader("Upload CSV files", type=["csv", "txt"], accept_multiple_files=True)
+    # Multi-file uploader
+    if "uploaded_files" not in st.session_state:
+        st.session_state["uploaded_files"] = []    
+    uploaded_files = st.file_uploader(
+        "Upload files (CSV, TXT, or Excel)",
+        type=["csv", "txt", "xls", "xlsx"],
+        accept_multiple_files=True)
+        
     if uploaded_files:
         for file in uploaded_files:
             df, uploaded_file_path = df_from_uploaded_file(file)

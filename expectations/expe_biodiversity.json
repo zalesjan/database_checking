@@ -37,8 +37,8 @@
       "abundance_chart": {
         "alternatives": ["abundance_chart"]
       },
-      "abundance_numeric_value": {
-        "alternatives": ["abundance_numeric_value", "abundance_numeric"],
+      "abundance_value": {
+        "alternatives": ["abundance_value", "abundance", "Pokryvnost"],
         "is_numeric": true
       },
       "red_list_chart": {
