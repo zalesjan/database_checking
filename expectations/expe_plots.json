@@ -58,6 +58,9 @@
       "geom": {
         "alternatives": ["wkt_geom", "geom", "geometry", "geom_field", "geom_col", "shape_geometry"],
         "non_null": true
+      },
+      "epsg_code": {
+        "alternatives": ["epsg_code", "epsg"]
       }
     },
     "required_non_null_columns": [

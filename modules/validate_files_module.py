@@ -172,11 +172,20 @@ def plausibility_test(df, xpi, base_columns):
     if {'dbh', 'previous_dbh', 'life'}.issubset(df.columns):
     
         # Drop NaN values
+        # Ensure numeric types (force coercion for non-numeric values to NaN)
+        df['dbh'] = pd.to_numeric(df['dbh'], errors='coerce')
+        df['previous_dbh'] = pd.to_numeric(df['previous_dbh'], errors='coerce')
+
+        # Drop rows with missing values in dbh or previous_dbh
         df.dropna(subset=['dbh', 'previous_dbh'], inplace=True)
+
+        # Apply the filters
         consistent_id_filter = df['consistent_id'] == "Y"
         life_filter = df['life'] == "A"  
         dbh_criteria = (df['dbh'] < df['previous_dbh'] - 25) | (df['dbh'] < df['previous_dbh'] * 0.9)
-        dbh_reduction = df[consistent_id_filter & life_filter & dbh_criteria & df['previous_dbh'].notna()][base_columns]
+
+        # Final filter
+        dbh_reduction = df[consistent_id_filter & life_filter & dbh_criteria][base_columns]
     else:
         consistent_id_filter = df['consistent_id'] == "Y"
     # Check Position Change: Position changes from L to S
