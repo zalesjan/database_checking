@@ -14,6 +14,8 @@ get_wildcard_db_id = "SELECT composed_site_id, record_id FROM public.sites"
 
 truncate_calc_basal_area = f"""TRUNCATE TABLE calc_basal_area;"""
 truncate_no_plots_per_year = f"""TRUNCATE TABLE no_plots_per_year;"""
+truncate_lying = f"""TRUNCATE TABLE basic_query_standing;"""
+truncate_standing = f"""TRUNCATE TABLE basic_query_lying;"""
 
 basic_query_no_plots_per_year = f"""
         INSERT INTO no_plots_per_year
@@ -40,33 +42,92 @@ basic_query_calc_basal_area = f"""
         JOIN
             public.plots ON t.plot_record_id = plots.record_id
         WHERE
-            t.composed_site_id like %s
-            and t.life = 'A'
-            and t.position = 'S';
+            t.composed_site_id like %s;
         """
 
-basic_query_main_query = f"""
-        SELECT
-        site_design.composed_site_id,
-        site_design.inventory_type,
-        plots.inventory_year,
-        p.p_num_plots,
-        COUNT(calc_basal_area.record_id)/((plots.sampled_area/10000)*p.p_num_plots) AS ntrees_ha,
-        SUM(calc_basal_area.basal_area)/((plots.sampled_area)*p.p_num_plots) AS ba_hectare,
-        MAX(calc_basal_area.dbh)/10 AS dbh_max,
-        MIN(calc_basal_area.dbh)/10 AS dbh_min,
-        AVG(calc_basal_area.dbh)/10 AS dbh_mean
-        FROM
-            public.site_design
-        JOIN
-            public.plots ON site_design.record_id = plots.site_design_record_id
-        JOIN
-            calc_basal_area ON plots.record_id = calc_basal_area.unique_plot_id
-        JOIN
-            no_plots_per_year p ON plots.site_design_record_id = p.sd_record_id
-        GROUP BY
-            site_design.composed_site_id, plots.inventory_year, plots.sampled_area, p.p_num_plots, site_design.inventory_type
-        order by site_design.composed_site_id;        
+basic_query_standing = f"""
+        INSERT INTO basic_query_standing
+            SELECT 
+			 	plots.composed_site_id,
+				site_design.inventory_type,
+				plots.inventory_year,
+				p.p_num_plots,
+                COUNT(calc_basal_area.record_id)/((plots.sampled_area/10000)*p.p_num_plots) AS ntrees_ha_standing,
+                SUM(calc_basal_area.basal_area)/((plots.sampled_area)*p.p_num_plots) AS ba_hectare_standing,
+                MAX(calc_basal_area.dbh)/10 AS dbh_max_standing,
+                MIN(calc_basal_area.dbh)/10 AS dbh_min_standing,
+                AVG(calc_basal_area.dbh)/10 AS dbh_mean_standing
+            FROM
+                public.site_design
+        	JOIN
+            	public.plots ON site_design.record_id = plots.site_design_record_id
+            JOIN
+                calc_basal_area ON plots.record_id = calc_basal_area.unique_plot_id
+            JOIN
+                no_plots_per_year p ON plots.site_design_record_id = p.sd_record_id
+            WHERE
+                calc_basal_area.position = 'S'
+            GROUP BY
+                plots.composed_site_id, plots.inventory_year, plots.sampled_area, p.p_num_plots, site_design.inventory_type
+            order by plots.composed_site_id;
+            """
+
+basic_query_lying = f"""                
+        
+			INSERT INTO basic_query_lying
+            SELECT 
+				plots.composed_site_id,
+				site_design.inventory_type,
+				plots.inventory_year,
+				p.p_num_plots,
+                COUNT(calc_basal_area.record_id)/((plots.sampled_area/10000)*p.p_num_plots) AS ntrees_ha_lying,
+                MAX(calc_basal_area.diameter_1)/10 AS max_d1,
+                MIN(calc_basal_area.diameter_1)/10 AS min_d1,
+                AVG(calc_basal_area.diameter_1)/10 AS mean_d1,
+                MAX(calc_basal_area.diameter_2)/10 AS max_d2,
+                MIN(calc_basal_area.diameter_2)/10 AS min_d2,
+                AVG(calc_basal_area.diameter_2)/10 AS mean_d2
+            FROM
+                public.site_design
+            JOIN
+                public.plots ON site_design.record_id = plots.site_design_record_id
+            JOIN
+                calc_basal_area ON plots.record_id = calc_basal_area.unique_plot_id
+            JOIN
+                no_plots_per_year p ON plots.site_design_record_id = p.sd_record_id
+            WHERE
+                calc_basal_area.position = 'L'
+			GROUP BY
+            	plots.composed_site_id, plots.inventory_year, plots.sampled_area, p.p_num_plots, site_design.inventory_type
+            order by 
+				plots.composed_site_id;
+            """
+
+basic_query_main_query = f""" 
+    SELECT 
+        standing.composed_site_id,
+        standing.inventory_type,
+        standing.inventory_year,
+        standing.ntrees_ha_standing,
+        lying.ntrees_ha_lying,
+        standing.ba_hectare_standing,
+        standing.dbh_max_standing,
+        standing.dbh_min_standing,
+        standing.dbh_mean_standing,
+		lying.max_d1,
+        lying.min_d1,
+        lying.mean_d1,
+		lying.max_d2,
+        lying.min_d2,
+        lying.mean_d2
+    FROM
+        basic_query_standing standing
+    JOIN
+        basic_query_lying lying ON 
+        standing.composed_site_id = lying.composed_site_id
+        AND standing.inventory_type = lying.inventory_type
+        AND standing.inventory_year = lying.inventory_year
+    order by standing.composed_site_id;    
         """
 
 tree_staging_id =f"""
@@ -125,13 +186,11 @@ truncate_tree_staging = """truncate tree_staging"""
 
 show_counts_of_all = f"""
         SELECT
-        
-        COUNT(DISTINCT sites.institute)AS institutes,
-        COUNT (DISTINCT sites.record_id) AS count_sites,
-        COUNT(DISTINCT site_design.record_id) AS count_site_designs,
-        COUNT(DISTINCT plots.record_id)AS count_plots,
-        COUNT(DISTINCT trees.record_id)AS count_trees
-        
+            COUNT(DISTINCT sites.institute)AS institutes,
+            COUNT (DISTINCT sites.record_id) AS count_sites,
+            COUNT(DISTINCT site_design.record_id) AS count_site_designs,
+            COUNT(DISTINCT plots.record_id)AS count_plots,
+            COUNT(DISTINCT trees.record_id)AS count_trees 
         FROM
             public.sites
         JOIN
