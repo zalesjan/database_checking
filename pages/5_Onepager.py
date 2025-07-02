@@ -5,6 +5,8 @@ from modules.dataframe_actions import determine_order, etl_process_df, extract_f
 from modules.database_utils import load_data_with_copy_command, password_check, select_role, do_query, foreign_key_mismatch, setup_logins, sanitize_institute_name
 from modules.database_utils import truncate_tree_staging, move_data_to_tree, tree_staging_id, plots_id, site_design_id, cwd_id, show_counts_of_all
 from modules.database_utils import basic_query_calc_basal_area, basic_query_main_query, basic_query_no_plots_per_year, truncate_no_plots_per_year, truncate_calc_basal_area
+from modules.database_utils import basic_query_lying, basic_query_standing, truncate_lying, truncate_standing
+
 from psycopg2 import sql
 import os
 
@@ -115,6 +117,10 @@ def process_copy_all_files(sorted_files, role, institute = None):
         basic_query_calc_basal_area_df, _ = do_query(basic_query_calc_basal_area, role, (f"%{institute}%",))
         do_query(truncate_no_plots_per_year, role)
         basic_query_no_plots_per_year_df, _ = do_query(basic_query_no_plots_per_year, role, (f"%{institute}%",))
+        do_query(truncate_standing, role)
+        do_query(truncate_lying, role)
+        _, basic_query_standing_df = do_query(basic_query_standing, role)
+        _, basic_query_lying_df = do_query(basic_query_lying, role)
         _, basic_query_main_query_df = do_query(basic_query_main_query, role)
         if basic_query_main_query_df is not None:
             # Define the filename
