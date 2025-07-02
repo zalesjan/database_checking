@@ -64,7 +64,7 @@ st.write(
 )
 
 if st.button("show how many sites, plots and trees we have"):           
-    _, show_counts_of_all_df = do_query(show_counts_of_all, role='vukoz')
+    _, show_counts_of_all_df = do_query(show_counts_of_all, role='role_superuser_DB_PROD')
     if show_counts_of_all_df is not None:
         # Define the filename
         show_counts_of_all_file = f"temp_dir/show_counts_of_all_file.csv"
