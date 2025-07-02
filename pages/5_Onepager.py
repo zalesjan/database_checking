@@ -1,92 +1,132 @@
 import streamlit as st
 from modules.logs import write_and_log, do_action_after_role_check
 from modules.validate_files_module import find_previous_record_id_columns_from_mapping, run_parallel_plausibility_tests, value_counts_for_each_distinct_value, distinct_values_with_counts, validate_file, tree_smaller_than_threshold
-from modules.dataframe_actions import determine_order, etl_process_df, df_from_uploaded_file, dataframe_for_tree_integrity
+from modules.dataframe_actions import determine_order, etl_process_df, extract_file_name, df_from_uploaded_file, dataframe_for_tree_integrity
 from modules.database_utils import load_data_with_copy_command, password_check, select_role, do_query, foreign_key_mismatch, setup_logins, sanitize_institute_name
 from modules.database_utils import truncate_tree_staging, move_data_to_tree, tree_staging_id, plots_id, site_design_id, cwd_id, show_counts_of_all
 from modules.database_utils import basic_query_calc_basal_area, basic_query_main_query, basic_query_no_plots_per_year, truncate_no_plots_per_year, truncate_calc_basal_area
 from psycopg2 import sql
+import os
 
-def process_copy_all_files(sorted_files, role):
+def process_copy_all_files(sorted_files, role, institute = None):
     previous_table_name = None  # Keep track of the last uploaded table
     previous_table_count = None  # Store the count of unique record_IDs in the previous table
     
-    for file in sorted_files:
-        # ETL
-        df, uploaded_file_path = df_from_uploaded_file(file)
-        table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(file.name, df.columns, df)
-        
-        if role == "VUKOZ-raw_data":
-            load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping, role)
-            write_and_log(f"Data copy of {file.name} to the database is complete.")
-            #create_raw_data_table(file.name, df.columns, df)
-            #uploaded_file_path = 
+    for name, file_object, _ in sorted_files:
 
-        # COPY DATA TO DATABASE
-        load_data_with_copy_command(df, uploaded_file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping, role)
-        write_and_log(f"Data copy of {file.name} to the database is complete.")
-        
-        # Store Institute if it's "sites"
-        if table_name == "sites":
-            institute = df["institute"].iloc[0]
-            sites_updated_rows = len(df["institute"])
-            previous_table_count = len(df["institute"])
+        unwanted_keywords = ["template", "basic_query", "with", "docx"]
+        if not any(keyword in name.lower() for keyword in unwanted_keywords):            
+            # ETL
+            df, uploaded_file_path = df_from_uploaded_file(file_object)
+            df_columns = {str(col).lower(): col for col in df.columns}
+            table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(role, name, df_columns, df)
             
-            sanitized_institute = sanitize_institute_name(institute)
-            create_role = f"""CREATE ROLE {sanitized_institute} WITH LOGIN PASSWORD %s;"""
-            do_query(create_role, role, (f"%{sanitized_institute}%",))
+            # Dynamically handle raw data role
+            if role in ["VUK-raw_data", "VUK-stage"]:
+                schema = table_name
+                table_name = (
+                    file_name.lower()
+                    .replace("-", "_")
+                    .replace(".", "_")
+                    .replace(" ", "_"))
+                
+                # Create table dynamically in a schema (e.g. biodiversity_raw)
+                create_stmt = f'CREATE SCHEMA IF NOT EXISTS {schema};'
+                do_query(create_stmt, role)
 
-            setup_logins(institute, sanitized_institute, table_name, role)
-            
+                # Create table with all columns as VARCHAR
+                column_defs = ",\n".join([f'"{col}" VARCHAR' for col in df_columns])
+                create_table_query = f'''
+                    CREATE TABLE IF NOT EXISTS "{schema}"."{table_name}" (
+                        {column_defs}
+                    );
+                '''
+                print(create_table_query)
+                do_query(create_table_query, role)
+                write_and_log(f"✅ Table `{schema}.{table_name}` created or already exists.")
 
-        if table_name == "site_design":
-            design_updated_rows, _ = do_query(site_design_id, role, (f"%{institute}%",) )
-            write_and_log(f"✅ Updated {design_updated_rows} rows in site_design with {previous_table_count} unique site values, and {sites_updated_rows} rows in sites.")
-            
-            setup_logins(institute, sanitized_institute, table_name, role)
+                # Load data directly to the raw schema
+                load_data_with_copy_command(df, schema,
+                                            uploaded_file_path, table_name, column_mapping,
+                                            ordered_core_attributes = [col.lower() for col in df.columns],
+                                            extra_columns=[],
+                                            ignored_columns=[],
+                                            role=role)
+                write_and_log(f"✅ Raw data from `{file_name}` loaded to {schema}.{table_name}`")
 
-        if table_name == "plots":
-            plots_updated_rows, _ = do_query(plots_id, role, (f"%{institute}%",))
-            write_and_log(f"✅ Updated {plots_updated_rows} rows in plots and {design_updated_rows} rows in site_design.")
+            else:
+                schema = "public"
+                sites_updated_rows = 0 
 
-            setup_logins(institute, sanitized_institute, table_name, role)
+                # COPY DATA TO DATABASE
+                load_data_with_copy_command(df, schema, uploaded_file_path, table_name, column_mapping, ordered_core_attributes, extra_columns, ignored_columns, role)
+                write_and_log(f"Data copy of {file_name} to the database is complete.")
+                
+                # Store Institute if it's "sites"
+                if table_name == "sites":
+                    institute = df["institute"].iloc[0]
+                    sites_updated_rows = len(df["institute"])
+                    previous_table_count = len(df["institute"])
+                    
+                    sanitized_institute = sanitize_institute_name(institute)
+                    create_role = f"""CREATE ROLE {sanitized_institute} WITH LOGIN PASSWORD %s;"""
+                    do_query(create_role, role, (f"%{sanitized_institute}%",))
 
-        if table_name == "cwd":
-            cwd_updated_rows, _=do_query(cwd_id, role, (f"%{institute}%",))
-            write_and_log(f"✅ Updated {cwd_updated_rows} rows in cwd and {plots_updated_rows} rows in plots.")
-        
-            setup_logins(institute, sanitized_institute, table_name, role)
+                    setup_logins(institute, sanitized_institute, table_name, role)
+                    
 
-        if table_name == "tree_staging":
-            tree_staging_updated_rows, _ =do_query(tree_staging_id, role, (f"%{institute}%",))
-            write_and_log(f"✅ Updated {tree_staging_updated_rows} rows in tree_staging and {plots_updated_rows} rows in plots.")
-            
-            moved_data_to_tree_from_staging, _ = do_query(move_data_to_tree, role)
-            do_query(truncate_tree_staging, role)
-            write_and_log(f"✅ {moved_data_to_tree_from_staging} rows moved from tree_staging to tree, PS: tree_staging was truncated and is therefore ready for next tree table")
+                if table_name == "site_design":
+                    design_updated_rows, _ = do_query(site_design_id, role, (f"%{institute}%",) )
+                    write_and_log(f"✅ Updated {design_updated_rows} rows in site_design with {previous_table_count} unique site values, and {sites_updated_rows} rows in sites.")
+                    if role == "moje":
+                        setup_logins(institute, sanitized_institute, table_name, role)
 
-            tree_smaller_than_threshold(institute, role) 
-            write_and_log(f"Help functions of {file.name} is complete.")
+                if table_name == "plots":
+                    plots_updated_rows, _ = do_query(plots_id, role, (f"%{institute}%",))
+                    write_and_log(f"✅ Updated {plots_updated_rows} rows in plots and {design_updated_rows} rows in site_design.")
+                    if role == "moje":
+                        setup_logins(institute, sanitized_institute, table_name, role)
+                else:
+                    plots_updated_rows = False
 
-            setup_logins(institute, sanitized_institute, table_name, role)
-            
+                if table_name == "cwd":
+                    cwd_updated_rows, _=do_query(cwd_id, role, (f"%{institute}%",))
+                    write_and_log(f"✅ Updated {cwd_updated_rows} rows in cwd and {plots_updated_rows} rows in plots.")
+                    if role == "moje":
+                        setup_logins(institute, sanitized_institute, table_name, role)
+
+                if table_name == "tree_staging":
+                    tree_staging_updated_rows, _ =do_query(tree_staging_id, role, (f"%{institute}%",))
+                    write_and_log(f"✅ Updated {tree_staging_updated_rows} rows in tree_staging and {plots_updated_rows} rows in plots.")
+                    
+                    moved_data_to_tree_from_staging, _ = do_query(move_data_to_tree, role)
+                    do_query(truncate_tree_staging, role)
+                    write_and_log(f"✅ {moved_data_to_tree_from_staging} rows moved from tree_staging to tree, PS: tree_staging was truncated and is therefore ready for next tree table")
+
+                    tree_smaller_than_threshold(institute, role) 
+                    write_and_log(f"Help functions of {file_name} is complete.")
+                    if role == "moje":
+                        setup_logins(institute, sanitized_institute, table_name, role)
+                    
     st.success("All files copied to the database successfully.")    
-    do_query(truncate_calc_basal_area, role)
-    basic_query_calc_basal_area_df, _ = do_query(basic_query_calc_basal_area, role, (f"%{institute}%",))
-    do_query(truncate_no_plots_per_year, role)
-    basic_query_no_plots_per_year_df, _ = do_query(basic_query_no_plots_per_year, role, (f"%{institute}%",))
-    _, basic_query_main_query_df = do_query(basic_query_main_query, role)
-    if basic_query_main_query_df is not None:
-        # Define the filename
-        basic_query_file = f"temp_dir/basic_query_file_{institute}.csv"
-        # Save the DataFrame as a CSV file
-        basic_query_main_query_df.to_csv(basic_query_file, index=False)
-        print(f"✅ Data saved successfully to {basic_query_file}")
-        write_and_log("Test of basic queries: (numTrees and Basal area/Ha); DBH min/max/mean was saved to file ")
-        st.dataframe(basic_query_main_query_df)  # Display the result as a DataFrame
-    else:
-        write_and_log("⚠️ No data was returned from the basic query:\n{basic_query_main_query}.")
-        
+
+    if role not in ["VUK-raw_data", "VUK-stage"]:
+        do_query(truncate_calc_basal_area, role)
+        basic_query_calc_basal_area_df, _ = do_query(basic_query_calc_basal_area, role, (f"%{institute}%",))
+        do_query(truncate_no_plots_per_year, role)
+        basic_query_no_plots_per_year_df, _ = do_query(basic_query_no_plots_per_year, role, (f"%{institute}%",))
+        _, basic_query_main_query_df = do_query(basic_query_main_query, role)
+        if basic_query_main_query_df is not None:
+            # Define the filename
+            basic_query_file = f"temp_dir/basic_query_file_{institute}.csv"
+            # Save the DataFrame as a CSV file
+            basic_query_main_query_df.to_csv(basic_query_file, index=False)
+            print(f"✅ Data saved successfully to {basic_query_file}")
+            write_and_log("Test of basic queries: (numTrees and Basal area/Ha); DBH min/max/mean was saved to Temp Dir ")
+            st.dataframe(basic_query_main_query_df)  # Display the result as a DataFrame
+        else:
+            write_and_log("⚠️ No data was returned from the basic query:\n{basic_query_main_query}.")
+            
 # Page Name
 st.title("5_Onepager")
 
@@ -100,22 +140,40 @@ if password_check():
         "Upload files (CSV, TXT, or Excel)",
         type=["csv", "txt", "xls", "xlsx"],
         accept_multiple_files=True
-)
+    )
     
     if uploaded_files:
+        file_order = []  # initialize list to hold tuples (file, order)
+
         # Determine processing order and Sort files by order 
-        file_order = [determine_order(file) for file in uploaded_files]
-        file_order.sort(key=lambda x: x[1])  # Sort by order value (lower number = higher priority)
-        sorted_files = [file_tuple[0] for file_tuple in file_order]    # Extract sorted file list
+        for file in uploaded_files:
+            file_path = file 
+            #print(f"this is file path: {file_path}")
 
+            file_name = extract_file_name(file)
+            file_name= file_name.lower()
+            #print(f"this is file_name: {file_name}")
 
+            order = determine_order(file_name)
+            file_order.append((file_name, file_path, order))  # collect the pair
+            #print(f"this is file_order: {file_order}")
+
+        file_order.sort(key=lambda x: x[2][1])  # sort by order
+
+        sorted_files = [(f_name, f_path, f_order) for f_name, f_path, f_order in file_order]
+        
+        #for name, path, item_order in sorted_files:
+            #print(f"{name} -> {path} order> {item_order}")     
+        
         if st.button("Run the validation") and uploaded_files:
             previous_table_name = None  # Keep track of the last uploaded table
             previous_table_count = None  # Store the count of unique record_IDs in the previous table
             
-            for file in sorted_files:
-                df, uploaded_file_path = df_from_uploaded_file(file)         # Create DF (dataframe_actions)
-                table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(file.name, df.columns, df) # ETL (dataframe_actions)
+            for name, file_object, _ in sorted_files:
+
+                df, uploaded_file_path = df_from_uploaded_file(file_object)       # Create DF (dataframe_actions)
+
+                table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(role, name, df.columns, df) # ETL (dataframe_actions)
 
                 # Store Institute if it's "sites"
                 if table_name == "sites":
@@ -224,7 +282,7 @@ if password_check():
 
             else:
                 # ✅ Role is safe, immediately proceed
-                process_copy_all_files(sorted_files, role)
+                process_copy_all_files(sorted_files, role, institute = None)
 
         # 🔹 If confirmation is needed (for sensitive role like "vukoz")
         if st.session_state.get('upload_confirmation_needed', False):
@@ -234,7 +292,7 @@ if password_check():
             if confirm:
                 st.success("Confirmation received. Now you can start uploading.")
                 if st.button("🚀 FINAL CONFIRM: Really copy all files to Database"):
-                    process_copy_all_files(sorted_files, role)
+                    process_copy_all_files(sorted_files, role, institute = None)
                     st.session_state['upload_confirmation_needed'] = False  # Reset after success
             
         if st.button("Crap, this upload went terribly wrong, I want to delete all data from this institute"):
@@ -266,3 +324,42 @@ if password_check():
                 show_counts_of_all_df.to_csv(show_counts_of_all_file, index=False)
                 write_and_log("This many sites, plots and trees we have:")
                 st.dataframe(show_counts_of_all_df)  # Display the result as a DataFrame
+
+    if st.button("Synchronize the raw data from sharepoint"):  
+        institute = "VUK"
+        sanitized_institute = sanitize_institute_name(institute)
+        
+        role = "postgres_dev"
+        sharepoint_local_path = r"C:\Users\zalesak\vukoz.cz\WILDCARD_EUFORIA_DATA - EUFoRIa Data Upload\VUKOZ"
+        #"C:\Users\zalesak\Downloads\Databáze vývoj\data\ver2.0\almost approved"
+        #"C:\Users\zalesak\vukoz.cz\WILDCARD_EUFORIA_DATA - EUFoRIa Data Upload\BFNP"
+        # Define accepted file extensions
+        accepted_extensions = ('.csv', '.txt', '.xls', '.xlsx')
+        
+        
+        # Collect matching files recursively
+        sharepoint_files = []
+
+        for root, _, files in os.walk(sharepoint_local_path):
+            for file in files:
+                file_name = extract_file_name(file)
+                if file.lower().endswith(accepted_extensions):
+                    full_path = os.path.join(root, file)
+                    sharepoint_files.append(full_path)
+        
+        if role != "VUK-raw_data":
+            file_order = [determine_order(file_name) for file in sharepoint_files]
+            file_order.sort(key=lambda x: x[1])  # Sort by order value (lower number = higher priority)
+            sorted_files = [file_tuple[0] for file_tuple in file_order]    # Extract sorted file list
+        else:    
+            # Optional: Sort alphabetically or by any other rule
+            sorted_files = sharepoint_files.sort()
+
+        # Preview
+        print(f"🗂️ Found {len(sorted_files)} files.")
+        #for f in sorted_files[:70]:  # Show the first 5
+            #print(f" - {f}")
+
+        process_copy_all_files(sorted_files, role, institute)
+        
+        write_and_log(f"synchronize_raw_data is at its end.")

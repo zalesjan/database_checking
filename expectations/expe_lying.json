@@ -65,7 +65,7 @@
         "is_date": true
       },
       "full_scientific": {
-        "alternatives": ["full_scientific", "species", "tree_species"]
+        "alternatives": ["full_scientific", "species"]
       },
       "diameter_1": {
         "alternatives": ["diameter_1", "d_1", "d1_mm"],
@@ -99,6 +99,12 @@
       "volume": {
           "alternatives": ["volume"],
           "non_null": true
+      },
+      "epsg_code": {
+          "alternatives": ["epsg_code"]
+      },
+        "diameter_130": {
+            "alternatives": ["diameter_1.3", "d_1.3", "diameter_1.3_mm", "diameter_130"]
       }
     },
     "required_non_null_columns": [

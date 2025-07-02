@@ -12,7 +12,7 @@
         "non_null": true
       },
       "prp_id": {
-        "alternatives": ["prp_id", "prp", "plocha", "plocha_id"],
+        "alternatives": ["prp_id", "prp", "plocha_id"],
         "non_null": true
       },
       "institute": {
@@ -29,10 +29,6 @@
       },
       "inventory_id": {
         "alternatives": ["inventory_id"]
-      },
-      "authors": {
-        "alternatives": ["authors", "autor", "autoři"],
-        "is_numeric": true
       },
       "abundance_chart": {
         "alternatives": ["abundance_chart"]
@@ -58,6 +54,88 @@
       "part_id": {
           "alternatives": ["piece_id", "pieceid", "piece-id", "pieceidentifier", "part_id"],
           "is_numeric": true
+      },
+      "date_of_collection": {
+          "alternatives": ["date_of_collection", "date", "date_ymd"],
+          "is_numeric": true
+      },
+       "wildcard_sub_id": {
+        "alternatives": ["wildcard_sub_id", "wildcard_id", "wildcardsubid", "wildcard-sub-id", "sub_id_wildcard"],
+        "non_null": true
+      },
+      "site_name": {
+        "alternatives": ["site_name", "sitename", "site-name", "site_name"],
+        "non_null": true
+      },
+      "circle_no": {
+        "alternatives": ["circle_no", "circleno", "circle-number", "circle_num"],
+        "non_null": true,
+        "is_numeric": true,
+        "range": [1, 100]
+      },
+      "circle_radius": {
+        "alternatives": ["circle_radius", "circleradius", "circle-radius", "radius_circle"],
+        "is_numeric": true,
+        "range": [0.0, 100.0]
+      },
+      "circle_azimuth": {
+        "alternatives": ["circle_azimuth", "circleazimuth", "circle-azimuth", "azimuth_circle"],
+        "is_numeric": true,
+        "range": [0, 360]
+      },
+      "circle_distance": {
+        "alternatives": ["circle_distance", "circledistance", "circle-distance", "distance_circle"],
+        "is_numeric": true,
+        "range": [0.0, 1000.0]
+      },
+      "pom_mark": {
+        "alternatives": ["pom_mark", "pommark", "pom-mark"],
+        "is_boolean": true,
+        "allowed_values": ["Y", "N", "T", "F", "True", "False"]
+      },
+      "standing_alive_threshold": {
+        "alternatives": ["standing_alive_threshold", "standingalivethreshold", "standing-alive-threshold"],
+        "is_numeric": true,
+        "range": [0, 20]
+      },
+      "standing_dead_threshold": {
+        "alternatives": ["standing_dead_threshold", "standingdeadthreshold", "standing-dead-threshold"],
+        "is_numeric": true,
+        "range": [0, 25]
+      },
+      "lying_alive_threshold": {
+        "alternatives": ["lying_alive_threshold", "lyingalivethreshold", "lying-alive-threshold"],
+        "is_numeric": true,
+        "range": [0, 50]
+      },
+      "lying_dead_threshold": {
+        "alternatives": ["lying_dead_threshold", "lyingdeadthreshold", "lying-dead-threshold"],
+        "is_numeric": true,
+        "range": [0, 50]
+      },
+      "species_pool": {
+        "alternatives": ["species_pool", "speciespool", "species-pool"],
+        "allowed_values": ["A", "B", "C", "D", "E"]
+      },
+      "lis_cwd": {
+        "alternatives": ["lis_cwd", "liscwd", "lis-cwd"],
+        "is_boolean": true
+      },
+      "geom": {
+        "alternatives": ["geom", "geometry", "wkt_geom", "geom_field", "geom_col"],
+        "non_null": true
+      },
+      "stem_coord_ref_point": {
+        "alternatives": ["stem_coord_ref_point", "stemcoordrefpoint", "stem-coord-ref-point"],
+        "allowed_values": ["A", "B", "C", "D"]
+      },
+      "epsg_code": {
+        "alternatives": ["epsg_code", "epsgcode", "epsg-code"],
+        "is_numeric": true,
+        "allowed_values": [4326, 3857, 32633, 27700]
+      },
+      "other": {
+        "alternatives": ["other", "miscellaneous", "additional_info", "other_data"]
       }
     },
     "required_non_null_columns": [

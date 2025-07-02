@@ -50,14 +50,14 @@ st.markdown("""
 2. **Run Validation Checks**: Perform checks on data format and value ranges.
 3. **Explore Data**: Utilize data exploration tools to understand distinct values and counts.
 4. **Database Upload**: After successful validation, contact Jan Zálešák (zalesak@vukoz.cz) to load your data to DB.
-5. **Compare Files**: contact Vokoz to identify differences between your original data and DB.
+5. **Compare Files**: contact VUK to identify differences between your original data and DB.
 """)
 
 # Closing Note
 st.header("Contacts")
 st.write(
     """
-    *If you believe you need insitutional or special access to the database, contact Jan Zálešák (zalesak@vukoz.cz).
+    *If you believe you need institutional or special access to the database, contact Jan Zálešák (zalesak@vukoz.cz).
     *For any assistance, contact Jan Zálešák (zalesak@vukoz.cz) for support.* 
     *Enjoy using the app!*
     """

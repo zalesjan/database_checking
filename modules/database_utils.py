@@ -40,7 +40,9 @@ basic_query_calc_basal_area = f"""
         JOIN
             public.plots ON t.plot_record_id = plots.record_id
         WHERE
-            t.composed_site_id like %s;
+            t.composed_site_id like %s
+            and t.life = 'A'
+            and t.position = 'S';
         """
 
 basic_query_main_query = f"""
@@ -113,9 +115,9 @@ site_design_id =f"""
             and s.composed_site_id like %s;
         """
 move_data_to_tree = """
-        INSERT INTO public.trees (composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume)
+        INSERT INTO public.trees (composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, epsg_code, udt)
         SELECT 
-            composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume
+            composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, epsg_code, now()
         FROM
             public.tree_staging;
         """
@@ -153,7 +155,7 @@ logging.basicConfig(
 
 def select_role():
     # Define available roles
-    available_roles = ["moje", "vukoz", "postgres_old", "postgres_dev", "VUKOZ-raw_data"]
+    available_roles = ["EuFoRIa_trees_db", "role_vukoz_DB_PROD", "role_superuser_DB_old", "role_superuser_DB_development", "role_superuser_DB_VUK-raw_data"]
 
     # Create a select box for role selection
     selected_role = st.selectbox("Select PostgreSQL Role:", available_roles, index=3)
@@ -229,7 +231,7 @@ def do_query(query, role, placeholders=None):
         st.error(f"An error occurred: {e}")
         return None, None  # Ensure function always returns two values
 
-def load_data_with_copy_command(df, file_path, table_name, ordered_core_attributes, extra_columns, ignored_columns, column_mapping, role):
+def load_data_with_copy_command(df, schema, file_path, table_name, column_mapping, ordered_core_attributes, extra_columns, ignored_columns, role):
     """
     Load data using the constructed COPY command, including JSONB data.
     
@@ -242,23 +244,28 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
     Returns:
         None
     """
-    if table_name == "biodiversity":
-        copy_command = biodiversity_determine_copy_command_with_ignore(file_path, ordered_core_attributes, extra_columns, table_name, ignored_columns)
+    if schema in ["biodiversity", "site_design"] or table_name in ["site_design", "biodiversity"]:
+        copy_command = biodiversity_determine_copy_command_with_ignore(file_path, ordered_core_attributes, extra_columns, table_name, df.columns, schema, ignored_columns)
+    #elif role == "VUKOZ-raw_data":
+        #copy_command = raw_data_determine_copy_command_with_ignore(file_path, ordered_core_attributes, extra_columns, table_name, ignored_columns)
     else:
-        copy_command = determine_copy_command_with_ignore(file_path, ordered_core_attributes, extra_columns, table_name, ignored_columns)
+        copy_command = determine_copy_command_with_ignore(file_path, ordered_core_attributes, extra_columns, table_name, schema, ignored_columns)
 
     # ✅ Convert problematic columns BEFORE preparing DataFrame
-    numeric_columns = ['year_reserve', 'year_abandonment', "inventory_year", "prp_id", "tree_id", "stem_id", "abundance_value"]  # Add other columns if needed
+    numeric_columns = ['year_reserve', 'year_abandonment', "inventory_year", "prp_id", "tree_id", "stem_id", "abundance_value", "epsg_code"]  # Add other columns if needed
     
     for col in numeric_columns:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')  # Convert to numeric (NaN for errors)
             df[col] = df[col].fillna(0).astype(int)  # Fill NaN and convert to int
-
-    if table_name == "biodiversity":
+    
+    if schema in ["biodiversity", "site_design"] or table_name in ["biodiversity", "site_design"]:
         df_ready = prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns)
+    #elif role == "VUKOZ-raw_data":
+        #df_ready = prepare_raw_data_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns)
+        #create_raw_data_table(file.name, df.columns, df)
     else:
-    # Prepare the DataFrame to include `extended_attributes`
+        # Prepare the DataFrame to include `extended_attributes`
         df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns)
     
     # Connect to the database and execute the COPY command
@@ -269,11 +276,12 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
     try:
         cur = conn.cursor()
         
-        # Count rows before insertion
-        cur.execute(f"SELECT COUNT(*) FROM public.{table_name};")
-        initial_row_count = cur.fetchone()[0]
-        print(f"🔹 Rows in `{table_name}` before insertion: {initial_row_count}")
-        st.write(f"🔹 Rows in `{table_name}` before insertion: {initial_row_count}")
+        if role != "VUK-raw_data":
+            # Count rows before insertion
+            cur.execute(f"SELECT COUNT(*) FROM public.{table_name};")
+            initial_row_count = cur.fetchone()[0]
+            print(f"🔹 Rows in `{table_name}` before insertion: {initial_row_count}")
+            st.write(f"🔹 Rows in `{table_name}` before insertion: {initial_row_count}")
 
         # Convert DataFrame to a CSV-like object for COPY
         copy_file_like_object = io.StringIO(df_ready.to_csv(index=False, sep='\t', header=True, na_rep='\\N'))
@@ -281,24 +289,25 @@ def load_data_with_copy_command(df, file_path, table_name, ordered_core_attribut
         # Execute COPY command
         cur.copy_expert(copy_command, copy_file_like_object)
 
+        if role != "VUK-raw_data":
         # Count rows after insertion
-        cur.execute(f"SELECT COUNT(*) FROM public.{table_name};")
-        final_row_count = cur.fetchone()[0]
-        print(f"🔹 Rows in `{table_name}` after insertion: {final_row_count}")
-        st.write(f"🔹 Rows in `{table_name}` after insertion: {final_row_count}")
+            cur.execute(f"SELECT COUNT(*) FROM public.{table_name};")
+            final_row_count = cur.fetchone()[0]
+            print(f"🔹 Rows in `{table_name}` after insertion: {final_row_count}")
+            st.write(f"🔹 Rows in `{table_name}` after insertion: {final_row_count}")
 
-        # Calculate number of rows inserted
-        rows_inserted = final_row_count - initial_row_count
+            # Calculate number of rows inserted
+            rows_inserted = final_row_count - initial_row_count
 
-        if rows_inserted == len(df_ready):
-            success_message = f"✅ Successfully loaded {rows_inserted} rows into `{table_name}`"
-        elif rows_inserted > 0:
-            success_message = f"⚠️ Only {rows_inserted} out of {len(df_ready)} rows were inserted into `{table_name}`"
-        else:
-            success_message = f"❌ No rows were inserted into `{table_name}`"
+            if rows_inserted == len(df_ready):
+                success_message = f"✅ Successfully loaded {rows_inserted} rows into `{table_name}`"
+            elif rows_inserted > 0:
+                success_message = f"⚠️ Only {rows_inserted} out of {len(df_ready)} rows were inserted into `{table_name}`"
+            else:
+                success_message = f"❌ No rows were inserted into `{table_name}`"
 
-        print(success_message)
-        st.write(success_message)
+            print(success_message)
+            st.write(success_message)
 
         # Commit transaction
         conn.commit()
@@ -424,6 +433,9 @@ def setup_logins(institute, sanitized_institute, table_name, role):
                 USING (composed_site_id like %s);
                 """
     do_query(create_rls_policy, role, (f"%{institute}%",))
+
+
+
 
 """
 # Authenticate with Google Sheets API

@@ -5,36 +5,52 @@ import numpy as np
 import streamlit as st
 from modules.logs import write_and_log
 
+import pandas as pd
+import os
+
+def extract_file_name(file):
+    """Handles both Streamlit UploadedFile and local string paths."""
+    if hasattr(file, "name"):
+        return file.name  # Streamlit upload
+    return os.path.basename(file)  # Local file path
+
 def df_from_uploaded_file(uploaded_file):
-    # Ensure the temporary directory exists
+    # If it's a string, treat it as a file path
+    if isinstance(uploaded_file, str):
+        uploaded_file_path = uploaded_file
+        print(uploaded_file)
+        print(uploaded_file_path)
+        if uploaded_file_path.endswith(".xlsx") or uploaded_file_path.endswith(".xls"):
+            print("1")
+            df = pd.read_excel(uploaded_file_path)
+        elif uploaded_file_path.endswith(".csv"):
+            print("2")
+            df = pd.read_csv(uploaded_file_path, sep=None, engine="python")
+        elif uploaded_file_path.endswith(".txt"):
+            print("3")
+            df = pd.read_csv(uploaded_file_path, sep="\t", engine="python")
+        else:
+            raise ValueError(f"Unsupported file type: {uploaded_file_path}")
+        return df, uploaded_file_path
+
+    # Else assume it's a Streamlit UploadedFile object
     temp_dir = "temp_dir"
     os.makedirs(temp_dir, exist_ok=True)
+    uploaded_file_path = os.path.join(temp_dir, uploaded_file.name)
 
-    # Save the uploaded file temporarily
-    uploaded_file_path = os.path.join("temp_dir", uploaded_file.name)
     with open(uploaded_file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    try:
-        if uploaded_file.name.endswith(".xlsx") or uploaded_file.name.endswith(".xls"):
-            df = pd.read_excel(uploaded_file)
-        else:
-            # Try common encodings
-            for encoding in ['utf-8', 'ISO-8859-1', 'windows-1250', 'latin1']:
-                try:
-                    df = pd.read_csv(uploaded_file, encoding=encoding, delimiter="\t")
-                    break
-                except UnicodeDecodeError:
-                    continue
-            else:
-                st.error("❌ Could not decode CSV. Try saving it in UTF-8 or upload as Excel.")
-                return None, None
+    if uploaded_file.name.endswith(".xlsx") or uploaded_file.name.endswith(".xls"):
+        df = pd.read_excel(uploaded_file)
+    elif uploaded_file.name.endswith(".csv"):
+        df = pd.read_csv(uploaded_file, sep=None, engine="python")
+    elif uploaded_file.name.endswith(".txt"):
+        df = pd.read_csv(uploaded_file, sep="\t", engine="python")
+    else:
+        raise ValueError(f"Unsupported file type: {uploaded_file.name}")
+    return df, uploaded_file_path
 
-        return df, uploaded_file.name
-
-    except Exception as e:
-        st.error(f"📛 Error reading file: {e}")
-        return None, None
 
 def df_from_detected_file(file_path):
     # Ensure the temporary directory exists
@@ -45,13 +61,23 @@ def df_from_detected_file(file_path):
     df = pd.read_csv(file_path, delimiter='\t')
     return df
 
-def etl_process_df(uploaded_file_name, df_columns, df):
-    st.header(f"{uploaded_file_name}")
+def etl_process_df(role, file_name, df_columns, df):
+
+    # 🔧 Use file_name for table naming, logging, etc.
+    table_name = os.path.splitext(file_name)[0].lower().replace(" ", "_")
+
+    st.header(f"{file_name}")
+    st.write(df)
+
     #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
-    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping = determine_configs(uploaded_file_name, df_columns)
+    table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping = determine_configs(file_name, df_columns)
     
-    extra_columns = find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes)
-    ignored_columns = find_ignored_columns(uploaded_file_name, df, extra_columns)
+    if role == "VUK-raw_data": 
+        ignored_columns = None
+        extra_columns = None
+    if role != "VUK-raw_data":
+        extra_columns = find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes)
+        ignored_columns = find_ignored_columns(file_name, df, extra_columns)
         
     return table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping
 
@@ -76,7 +102,7 @@ def find_ignored_columns(uploaded_file_name, df, extra_columns):
 
 def find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes):
     # Normalize the column names from the file to lowercase
-    df_columns_lower = {col.lower(): col for col in df_columns}  # Mapping original to lowercase
+    df_columns_lower = {str(col).lower(): col for col in df_columns}  # Mapping original to lowercase
 
     # Extract expected column names (main attributes, not alternatives)
     extra_columns = [col for col in df_columns_lower if col not in core_and_alternative_columns]
@@ -143,6 +169,7 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
 
     # Step 1: Lowercase and rename columns using column_mapping
     df_for_copy = df.copy()
+    print(df_for_copy)
     df_for_copy.columns = df_for_copy.columns.str.lower()
     df_for_copy.rename(columns=column_mapping, inplace=True)
 
@@ -150,8 +177,6 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
     if ignored_columns:
         ordered_core_attributes = [col for col in ordered_core_attributes if col not in ignored_columns]
         extra_columns = [col for col in extra_columns if col not in ignored_columns]
-
-        print(f"ℹ️from DF: extra_columns {extra_columns}")
     
     # Step 3: Determine JSON field mapping
     # Find the matching key in table_mapping where the value[0] == table_name
@@ -164,6 +189,7 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
     used_in_json_fields = []
 
     if json_column_mapping:
+
         for json_field, source_columns in json_column_mapping.items():
             available_cols = [col for col in source_columns if col in df_for_copy.columns]
             if not available_cols:
@@ -180,15 +206,29 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
                     return json.dumps(authors)
 
                 df_for_copy[json_field] = df_for_copy[available_cols].apply(parse_authors, axis=1)
-                
-         
-            # ✅ All other fields (generic JSON handling)
-            if json_field not in ["authors", "additional_taxonomy"]:
+
+            # 🧠 Special case for plots_list
+            elif json_field == "plots_list":
+                def parse_plots_list(row):
+                    items = []
+                    for col in available_cols:
+                        val = row.get(col)
+                        if pd.notna(val):
+                            items.extend([item.strip() for item in str(val).split(';') if item.strip()])
+                    return json.dumps(items)
+
+                df_for_copy[json_field] = df_for_copy[available_cols].apply(parse_plots_list, axis=1)
+
+            # ✅ Generic case
+            else:
                 df_for_copy[json_field] = df_for_copy[available_cols].apply(
                     lambda row: json.dumps({k: v for k, v in row.dropna().to_dict().items()}),
                     axis=1
                 )
-            df_for_copy.drop(columns=available_cols, inplace=True)
+
+            # 🔁 Drop source columns (since JSON was created)
+            if json_field not in ["plots_list", "authors"]:
+                df_for_copy.drop(columns=available_cols, inplace=True)
             used_in_json_fields.extend(available_cols)
 
     # Step 5: Special handling for parentheses in full_scientific
@@ -229,27 +269,33 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
                 for extra in taxonomy_extras
             ]
 
-            
-    print(f"ℹ️from DF: used_in_json_fields {used_in_json_fields}")
-    # Step 5: Create extended_attributes (excluding those used in JSON fields)
+                # Step 5: Create extended_attributes (excluding those used in JSON fields)
     final_extra_columns = [col for col in extra_columns if col not in used_in_json_fields]
-    print(f"ℹ️from DF: extra_columns {final_extra_columns}")
    
     if final_extra_columns:
+        print(df.columns)
         df_for_copy['extended_attributes'] = df[final_extra_columns].apply(
             lambda row: json.dumps(row.dropna().to_dict()), axis=1
         )
-
+    
+    st.write("✅ Final DataFrame preview before COPY:")
+    st.dataframe(df_for_copy.head())
     # Step 6: Select final output columns
     all_required_columns = ordered_core_attributes.copy()
+    print(all_required_columns)
+
     if json_column_mapping:
         all_required_columns += list(json_column_mapping.keys())
     if "additional_taxonomy" in df_for_copy.columns:
         all_required_columns.append("additional_taxonomy")
+
     if final_extra_columns:
         all_required_columns.append("extended_attributes")
+    print(all_required_columns)
+    print(df_for_copy)
 
     df_for_copy = df_for_copy[[col for col in all_required_columns if col in df_for_copy.columns]].copy()
+    
 
     st.write("✅ Final DataFrame preview before COPY:")
     st.dataframe(df_for_copy.head())
@@ -295,7 +341,7 @@ def determine_copy_command_for_ecology_with_ignore(file_path, df_columns, extra_
     write_and_log(f'copy_command: {copy_command}')
     return copy_command
 
-def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
+def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, table_name, schema, ignored_columns=None):
     """
     Determines the core attributes and constructs the COPY command including extended attributes.
      
@@ -326,27 +372,93 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
  
     # Create the COPY command to include core columns and JSONB `extended_attributes`
     copy_command = f"""
-     COPY public.{table_name} 
+     COPY {schema}.{table_name} 
      ({columns_string}) 
      FROM STDIN WITH DELIMITER E'\t' CSV HEADER NULL '\\N';"""
- 
+    print(schema)
+    print(table_name)
     write_and_log(f'copy_command: {copy_command}')
     return copy_command
  
-def biodiversity_determine_copy_command_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
-    """
-    Determines the core attributes and constructs the COPY command including extended attributes.
+def biodiversity_determine_copy_command_with_ignore(file_path, ordered_core_attributes, extra_columns, table_name, df_columns, schema, ignored_columns=None):
     
-    Args:
-        file_path (str): Path to the file being processed.
-        df_columns (list): List of columns in the DataFrame.
-        extra_columns (list): List of extra columns to be stored as JSONB.
-        table_name (str): Name of the table to insert data into.
-        ignored_columns (list, optional): List of columns to be ignored from the DataFrame.
+    json_column_mapping = {}
+
+    # Find the matching key in table_mapping where the value[0] == table_name
+    for key, value in table_mapping.items():
+        if value[0] == schema or value[0] == table_name:
+            json_column_mapping = value[4] if len(value) > 4 and isinstance(value[4], dict) else {}
+            break
+
+    if ignored_columns is None:
+        ignored_columns = []
+
+
+    # Flatten all JSON-related columns into a set of columns to exclude
+    json_mapped_columns = set()
+    valid_json_fields = []
+
+    # Normalize DataFrame columns to lowercase for consistent matching
+    df_columns_lower = {str(col).lower(): col for col in df_columns}
+
+    # Filter out ignored columns
+    filtered_columns = [col for col in ordered_core_attributes if col not in ignored_columns]
+
+    # Map the filtered DataFrame columns to core attributes
+    core_attributes = [col for col in filtered_columns if col not in extra_columns]
     
-    Returns:
-        copy_command (str): The COPY command for inserting data.
-    """
+    if json_column_mapping:
+        # Add JSONB fields to be included in the COPY command
+        # Only include JSON fields if at least one of their source columns is in the DataFrame
+        for json_field, source_cols in json_column_mapping.items():
+            #print(f"ℹ️from copy command: json_column_mapping {json_column_mapping}")
+            #print(f"ℹ️from copy command: json_field {json_field}")
+            #print(f"ℹ️from copy command: df_columns_lower {df_columns_lower}")
+            #print(f"ℹ️from copy command: source_cols {source_cols}")
+
+            if any(col.lower() in df_columns_lower for col in source_cols):
+                #print(source_cols)
+                valid_json_fields.append(json_field)
+                #print(f"ℹ️from copy command: valid_json_fields {valid_json_fields}")
+
+                json_mapped_columns.update([col.lower() for col in source_cols])
+                #print(f"ℹ️from copy command: json_mapped_columns {json_mapped_columns}")
+                print(f"ℹ️from copy command: valid_json_fields {valid_json_fields}")
+        
+        if schema == "site_design":
+            columns_string = ", ".join(f'"{col}"' for col in (core_attributes))
+        else:
+            columns_string = ", ".join(f'"{col}"' for col in (core_attributes + valid_json_fields))
+
+        #columns_string = ", ".join(core_attributes + valid_json_fields)
+        #print(f"ℹ️from copy command: core_attributes {core_attributes}")
+        #print(f"ℹ️from copy command: columns_string {columns_string}")
+
+    # 2. Exclude those from extra_columns
+    extra_columns = [col for col in extra_columns if col not in json_mapped_columns and col not in ignored_columns]
+
+    if extra_columns:
+        # Join core columns into a comma-separated string
+        columns_string = ", ".join(f'"{col}"' for col in (core_attributes + valid_json_fields + ["extended_attributes"]))
+    else:
+        if schema != "site_design":
+            columns_string = ", ".join(f'"{col}"' for col in (core_attributes + valid_json_fields))
+
+    #print(f"ℹ️from copy command: columns_string {columns_string}")
+
+    # Create the COPY command to include core columns and JSONB `extended_attributes`
+    copy_command = f"""
+    COPY {schema}.{table_name} 
+    ({columns_string}) 
+    FROM STDIN WITH DELIMITER E'\t' CSV HEADER NULL '\\N';"""
+    #print(f"ℹ️from copy command: columns_string {columns_string}")
+
+    write_and_log(f'copy_command: {copy_command}')
+    return copy_command
+
+"""
+def raw_data_determine_copy_command_with_ignore(file_path, df_columns, extra_columns, table_name, ignored_columns=None):
+    
     json_column_mapping = {}
 
     # Find the matching key in table_mapping where the value[0] == table_name
@@ -396,12 +508,14 @@ def biodiversity_determine_copy_command_with_ignore(file_path, df_columns, extra
 
     # Create the COPY command to include core columns and JSONB `extended_attributes`
     copy_command = f"""
+"""
     COPY public.{table_name} 
     ({columns_string}) 
     FROM STDIN WITH DELIMITER E'\t' CSV HEADER NULL '\\N';"""
-    
+"""    
     write_and_log(f'copy_command: {copy_command}')
     return copy_command
+"""
 
 common_biodiversity_config = (
     "biodiversity", 
@@ -410,12 +524,15 @@ common_biodiversity_config = (
     [], 
     {
         "authors": ["author1", "author2", "authors"],
-        "addional_taxonomy": ["order", "class", "phylum", "taxonomy_value"],
+        "addional_taxonomy": ["order", "class", "phylum", "taxonomy_value", "tax_note", "taxon_author"],
         "group_specific_tree": [
             "tree", "stem", "part", "prp",
-            "group_specific_tree_species_count", "group_specific_tree_total_cover",
-            "group_specific_tree_note_tree", "total_cover", "species_count", "note", "group_specific_species_loc_in_plot"
-        ]
+            "group_specific_tree_species_count", "group_specific_tree_total_cover", "group_specific_tree_note_tree", "group_specific_tree_janek_id",
+            "total_cover", "species_count", "note",  "group_specific_tree_decay", 
+            "group_specific_tree_soil_contact", "group_specific_tree_moss_coverage", "group_specific_tree_bark_coverage"
+        ],
+        "group_specific_species": ["group_specific_species_loc_in_plot", "group_specific_species_trap_type"],
+        "group_specific_prp": []
     }
 )
 
@@ -431,19 +548,20 @@ table_mapping = {
         "biodiversity": common_biodiversity_config,
         "bryo": common_biodiversity_config,
         "malaco": common_biodiversity_config,
+        "fyto": common_biodiversity_config,
+        "ento": common_biodiversity_config,
+        "lich": common_biodiversity_config,
 }
 
-def determine_configs(file_path, df_columns):
-    
+def determine_configs(file_name, df_columns):
+    #print(file_name)
     # Normalize the column names from the file to lowercase
-    df_columns_lower = {col.lower(): col for col in df_columns}  # Mapping original to lowercase
-    
-    # Define the mapping of base filename content to table names
-    base_filename = os.path.basename(file_path).lower()
+    df_columns_lower = {str(col).lower(): col for col in df_columns}  # Mapping original to lowercase
     
     # Find the appropriate table name and config file based on the filename
     for table_acronym, (table_name, config_file, _, _, _) in table_mapping.items():
-        if table_acronym in base_filename:
+        #print(table_acronym)
+        if table_acronym in file_name:
             # Load the config file
             with open(config_file, 'r') as f:
                 config = json.load(f)
@@ -466,16 +584,17 @@ def determine_configs(file_path, df_columns):
             # Join the core_attributes list into a comma-separated string
             core_columns_string = ", ".join(ordered_core_attributes)
             #write_and_log(f"SQL command columns: {core_columns_string}")
-            
+            #print( table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping)
+
             return table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping
 
     # If no match is found, return a high priority number so it is processed last
-    return None, None, None, None, None, 99
+    return None, None, None, None, None, None, 99
 
 def determine_order(file):
     # Define the mapping of base filename content to table names
     
-    base_filename = file.name.lower()
+    base_filename = file.lower()
     
     for key, (_, _, order, _, _) in table_mapping.items():
         if key in base_filename:

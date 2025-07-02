@@ -71,7 +71,7 @@
             "is_date": true
         },
         "full_scientific": {
-            "alternatives": ["full_scientific", "species", "tree_species"]
+            "alternatives": ["full_scientific"]
         },
         "dbh": {
             "alternatives": ["dbh", "dbh_cm", "dbh_m", "dbh_mm"],
@@ -91,7 +91,13 @@
         "volume": {
             "alternatives": ["volume"],
             "non_null": true
-        }
+        },
+        "epsg_code": {
+            "alternatives": ["epsg_code"]
+        },
+        "diameter_1.3": {
+            "alternatives": ["diameter_1.3", "d_1.3", "diameter_1.3_mm", "diameter_130"]
+      }
     },
     "required_non_null_columns": [
         "site_id",
