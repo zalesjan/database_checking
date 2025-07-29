@@ -74,7 +74,7 @@
             "alternatives": ["full_scientific"]
         },
         "dbh": {
-            "alternatives": ["dbh", "dbh_cm", "dbh_m", "dbh_mm"],
+            "alternatives": ["dbh", "dbh_m", "dbh_mm"],
             "non_null": true,
             "is_numeric": true,
             "range": [0, 200]
@@ -85,7 +85,7 @@
             "range": [0, 5]
         },
         "geom": {
-            "alternatives": ["wkt_geom", "geom", "geometry", "boundaries", "geom_field"],
+            "alternatives": ["geom", "geom", "geometry", "boundaries", "geom_field"],
             "non_null": true
         },
         "volume": {

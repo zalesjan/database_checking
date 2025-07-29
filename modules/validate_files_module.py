@@ -8,6 +8,7 @@ import os
 import logging
 from modules.logs import write_and_log
 from modules.database_utils import do_query
+from modules.dataframe_actions import df_from_uploaded_file
 import streamlit as st
 
 logging.basicConfig(
@@ -221,7 +222,8 @@ def tree_smaller_than_threshold(institute, role):
         ON plot_record_id = p.record_id
     JOIN site_design d
         ON site_design_record_id = d.record_id
-    where t.dbh < d.standing_alive_threshold
+    where t.life like 'A'
+    and t.dbh < d.standing_alive_threshold
     and p.composed_site_id like %s;
     """
     _, dbh_smaller_than_threshold = do_query(dbh_smaller_than_threshold, role, (f"%{institute}%",))
@@ -409,8 +411,8 @@ def run_parallel_plausibility_tests(df_integrity_lpi_id, df_integrity_spi_id, df
 
 def file_comparison(file_1, file_2):
     # Load the files into DataFrames
-    df1 = pd.read_csv(file_1)
-    df2 = pd.read_csv(file_2)
+    df1, _ = df_from_uploaded_file(file_1, header_line_idx= None) 
+    df2, _ = df_from_uploaded_file(file_2, header_line_idx= None)      # Create DF (dataframe_actions)
 
     # Convert columns to lowercase
     df1.columns = df1.columns.str.lower()

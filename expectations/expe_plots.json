@@ -56,7 +56,7 @@
         "non_null": true
       },
       "geom": {
-        "alternatives": ["wkt_geom", "geom", "geometry", "geom_field", "geom_col", "shape_geometry"],
+        "alternatives": ["geom", "geometry", "geom_field", "geom_col", "shape_geometry"],
         "non_null": true
       },
       "epsg_code": {

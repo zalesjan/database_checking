@@ -41,13 +41,14 @@ if password_check():
         sorted_files = [(f_name, f_path, f_order) for f_name, f_path, f_order in file_order]
         
         for name, file_object, _ in sorted_files:
-            df, uploaded_file_path = df_from_uploaded_file(file_object)
-            table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(role, name, df.columns, df)
+
+            df, uploaded_file_path = df_from_uploaded_file(file_object, header_line_idx= None)
+            table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping, header_line_idx = etl_process_df(role, name, uploaded_file_path, df.columns, df)
 
             # COPY TO DATABASE
             if st.button("Copy Data to Database"):
                 write_and_log(f'attempting to upload: {file.name}')
-                if role in ["VUK-raw_data", "VUK-stage"]:
+                if role in ["role_superuser_DB_VUK-raw_data", "VUK-stage"]:
                     schema = table_name
                     table_name = (file.name).lower().replace("-", "_").replace(".", "_").replace(" ", "_")
                     
@@ -114,7 +115,7 @@ if password_check():
     if st.button("Redo the RLS policy"):
                 # Define your users and their corresponding institute filters
         user_institute_map = {
-            "honza_holik": "__", "VUK": "VUK"
+            "magda": "__"
             }
         
         """
@@ -152,7 +153,7 @@ if password_check():
         
 
         # List of tables to apply the RLS to
-        target_tables = ["sites", "site_design", "plots", "trees", "metadata", "cwd"]
+        target_tables = ["sites", "site_design", "plots", "trees", "metadata", "cwd", "biodiversity", "tree_staging"]
 
         for sanitized_user, institute_filter in user_institute_map.items():
             for table_name in target_tables:
@@ -163,36 +164,40 @@ if password_check():
                 #force_rls = f"""ALTER TABLE {table_name} FORCE ROW LEVEL SECURITY;"""
                 #do_query(enable_rls, role)
                 #do_query(force_rls, role)
+                if role == "role_superuser_DB_VUK-raw_data":
+                    for table_name in target_tables:
+                        grant_select = f"""GRANT SELECT ON all TABLES IN SCHEMA {table_name} TO {sanitized_user};"""
+                        do_query(grant_select, role)
+                else:
+                    # 2. Grant SELECT to user
+                    grant_select = f"""GRANT SELECT ON TABLE {table_name} TO {sanitized_user};"""
+                    do_query(grant_select, role)
 
-                # 2. Grant SELECT to user
-                grant_select = f"""GRANT SELECT ON TABLE {table_name} TO {sanitized_user};"""
-                do_query(grant_select, role)
+                    # 3. Create or replace policy
+                    policy_name = f"{sanitized_user}_policy"
 
-                # 3. Create or replace policy
-                policy_name = f"{sanitized_user}_policy"
-
-                drop_policy = f"""DROP POLICY IF EXISTS {policy_name} ON {table_name};"""
-                # Special case: give full access to jan_holik
-                if sanitized_user == "honza_holik":
-                    create_policy = f"""
-                        CREATE POLICY {policy_name}
+                    drop_policy = f"""DROP POLICY IF EXISTS {policy_name} ON {table_name};"""
+                    # Special case: give full access to jan_holik
+                    if sanitized_user == "tomas_privetivy":
+                        create_policy = f"""
+                            CREATE POLICY {policy_name}
+                                ON {table_name}
+                                FOR SELECT
+                                TO {sanitized_user}
+                                USING (true);
+                        """
+                    else:
+                        like_pattern = f"%{institute_filter}%"
+                        create_policy = f"""
+                            CREATE POLICY {policy_name}
                             ON {table_name}
                             FOR SELECT
                             TO {sanitized_user}
-                            USING (true);
+                            USING (composed_site_id LIKE '{like_pattern}');
                     """
-                else:
-                    like_pattern = f"%{institute_filter}%"
-                    create_policy = f"""
-                        CREATE POLICY {policy_name}
-                        ON {table_name}
-                        FOR SELECT
-                        TO {sanitized_user}
-                        USING (composed_site_id LIKE '{like_pattern}');
-                """
-                    
-                do_query(drop_policy, role)
-                do_query(create_policy, role)
+                        
+                    do_query(drop_policy, role)
+                    do_query(create_policy, role)
 
-                write_and_log(f"✅ RLS set up for user {sanitized_user} on table {table_name}.")
+                    write_and_log(f"✅ RLS set up for user {sanitized_user} on table {table_name}.")
         

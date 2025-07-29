@@ -14,21 +14,34 @@ def extract_file_name(file):
         return file.name  # Streamlit upload
     return os.path.basename(file)  # Local file path
 
-def df_from_uploaded_file(uploaded_file):
+def df_from_uploaded_file(uploaded_file, header_line_idx):
+
+    encodings_to_try = ["utf-8", "cp1250", "iso-8859-2", "latin1"]
+
+    def try_read_csv(filepath, sep, skiprows):
+        for enc in encodings_to_try:
+            try:
+                df = pd.read_csv(filepath, sep=sep, skiprows= skiprows, engine="python", encoding=enc)
+                print(f"✅ Loaded with encoding: {enc}")
+                return df
+            except UnicodeDecodeError:
+                print(f"❌ Failed to decode {filepath} with encoding: {enc}")
+        raise UnicodeDecodeError(f"⚠️ Could not decode {filepath} with any known encoding.")
+    
     # If it's a string, treat it as a file path
     if isinstance(uploaded_file, str):
         uploaded_file_path = uploaded_file
         print(uploaded_file)
         print(uploaded_file_path)
         if uploaded_file_path.endswith(".xlsx") or uploaded_file_path.endswith(".xls"):
-            print("1")
+            print(".xlsx")
             df = pd.read_excel(uploaded_file_path)
         elif uploaded_file_path.endswith(".csv"):
-            print("2")
-            df = pd.read_csv(uploaded_file_path, sep=None, engine="python")
+            print(".csv")
+            df = try_read_csv(uploaded_file_path, sep=None, skiprows = header_line_idx)
         elif uploaded_file_path.endswith(".txt"):
-            print("3")
-            df = pd.read_csv(uploaded_file_path, sep="\t", engine="python")
+            print(".txt")
+            df = try_read_csv(uploaded_file_path, sep="\t", skiprows = header_line_idx)
         else:
             raise ValueError(f"Unsupported file type: {uploaded_file_path}")
         return df, uploaded_file_path
@@ -44,9 +57,9 @@ def df_from_uploaded_file(uploaded_file):
     if uploaded_file.name.endswith(".xlsx") or uploaded_file.name.endswith(".xls"):
         df = pd.read_excel(uploaded_file)
     elif uploaded_file.name.endswith(".csv"):
-        df = pd.read_csv(uploaded_file, sep=None, engine="python")
+        df = try_read_csv(uploaded_file, sep=None, skiprows = header_line_idx)
     elif uploaded_file.name.endswith(".txt"):
-        df = pd.read_csv(uploaded_file, sep="\t", engine="python")
+        df = try_read_csv(uploaded_file, sep="\t", skiprows = header_line_idx)
     else:
         raise ValueError(f"Unsupported file type: {uploaded_file.name}")
     return df, uploaded_file_path
@@ -61,7 +74,7 @@ def df_from_detected_file(file_path):
     df = pd.read_csv(file_path, delimiter='\t')
     return df
 
-def etl_process_df(role, file_name, df_columns, df):
+def etl_process_df(role, file_name, uploaded_file_path, df_columns, df):
 
     # 🔧 Use file_name for table naming, logging, etc.
     table_name = os.path.splitext(file_name)[0].lower().replace(" ", "_")
@@ -71,15 +84,20 @@ def etl_process_df(role, file_name, df_columns, df):
 
     #GET CONFIGS AND COLUMNS based on file name and extra columns that are not part of the ordered_core_attributes, st.write core and extra ones
     table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping = determine_configs(file_name, df_columns)
-    
-    if role == "VUK-raw_data": 
+   
+    if role == "role_superuser_DB_VUK-raw_data": 
         ignored_columns = None
         extra_columns = None
-    if role != "VUK-raw_data":
+
+        expected_cols = core_and_alternative_columns
+        header_line_idx = find_header_line(uploaded_file_path, expected_cols, sep="\t", encoding="utf-8")
+
+    if role != "role_superuser_DB_VUK-raw_data":
         extra_columns = find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_attributes)
         ignored_columns = find_ignored_columns(file_name, df, extra_columns)
+        header_line_idx = None
         
-    return table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping
+    return table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping, header_line_idx
 
 def find_ignored_columns(uploaded_file_name, df, extra_columns):
     
@@ -115,6 +133,27 @@ def find_extra_columns(df_columns, core_and_alternative_columns, ordered_core_at
         st.write("No extra columns found.")
     return extra_columns if extra_columns else []
 
+def find_header_line(filepath, expected_columns, sep="\t", encoding="utf-8"):
+    #print(f"🔍 Expected columns: {expected_columns}")
+    threshold = 6
+    print(f"🔎 Using threshold: {threshold}")
+
+    with open(filepath, encoding=encoding, errors="ignore") as f:
+        for i, line in enumerate(f):
+            if not line.strip():
+                continue
+
+            fields = [col.strip().lower() for col in line.strip().split(sep)]
+            match_count = sum(1 for col in expected_columns if col.lower() in fields)
+
+            print(f"Line {i}: match_count={match_count}")
+
+            if match_count >= threshold:
+                print(f"✅ Header found at line {i}: {fields}")
+                return i
+
+    raise ValueError("❌ Could not detect header line dynamically.")
+
 def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns=None):
      """
      Prepares the DataFrame to merge core data with a JSONB column `extended_attributes` for COPY command.
@@ -141,6 +180,7 @@ def prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, colum
          extra_columns = [col for col in extra_columns if col not in ignored_columns]
  
      # Step 4: Keep only the necessary columns (both core and extra)
+     print(ordered_core_attributes)
      df_for_copy = df_for_copy[ordered_core_attributes].copy()
      st.write("Data Preview:", df_for_copy.head())
  
@@ -258,13 +298,12 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
         # does not work well, it creates an extra column additional_taxonomy
         
         if "additional_taxonomy" in df_for_copy.columns:
-            existing = df_for_copy["additional_taxonomy"].apply(json.loads)
-            df_for_copy["taxonomy_extras"] = [
-                json.dumps({**e, "taxonomy_extras": [extra]} if extra else e)
-                for e, extra in zip(existing, taxonomy_extras)
+            df_for_copy["additional_taxonomy"] = [
+                json.dumps({**json.loads(e), "taxonomy_extras": [extra]} if extra else json.loads(e))
+                for e, extra in zip(df_for_copy["additional_taxonomy"], taxonomy_extras)
             ]
         else:
-            df_for_copy["taxonomy_extras"] = [
+            df_for_copy["additional_taxonomy"] = [
                 json.dumps({"taxonomy_extras": [extra]} if extra else {})
                 for extra in taxonomy_extras
             ]
@@ -286,7 +325,7 @@ def prepare_biodiversity_dataframe_for_copy(df, ordered_core_attributes, extra_c
 
     if json_column_mapping:
         all_required_columns += list(json_column_mapping.keys())
-    if "additional_taxonomy" in df_for_copy.columns:
+    if "additional_taxonomy" in df_for_copy.columns and "additional_taxonomy" not in all_required_columns:
         all_required_columns.append("additional_taxonomy")
 
     if final_extra_columns:
@@ -375,8 +414,6 @@ def determine_copy_command_with_ignore(file_path, df_columns, extra_columns, tab
      COPY {schema}.{table_name} 
      ({columns_string}) 
      FROM STDIN WITH DELIMITER E'\t' CSV HEADER NULL '\\N';"""
-    print(schema)
-    print(table_name)
     write_and_log(f'copy_command: {copy_command}')
     return copy_command
  
@@ -524,7 +561,7 @@ common_biodiversity_config = (
     [], 
     {
         "authors": ["author1", "author2", "authors"],
-        "addional_taxonomy": ["order", "class", "phylum", "taxonomy_value", "tax_note", "taxon_author"],
+        "additional_taxonomy": ["order", "class", "phylum", "taxonomy_value", "tax_note", "taxon_author"],
         "group_specific_tree": [
             "tree", "stem", "part", "prp",
             "group_specific_tree_species_count", "group_specific_tree_total_cover", "group_specific_tree_note_tree", "group_specific_tree_janek_id",
@@ -551,17 +588,19 @@ table_mapping = {
         "fyto": common_biodiversity_config,
         "ento": common_biodiversity_config,
         "lich": common_biodiversity_config,
+        "myko": common_biodiversity_config,
 }
 
 def determine_configs(file_name, df_columns):
-    #print(file_name)
+   
     # Normalize the column names from the file to lowercase
     df_columns_lower = {str(col).lower(): col for col in df_columns}  # Mapping original to lowercase
     
     # Find the appropriate table name and config file based on the filename
     for table_acronym, (table_name, config_file, _, _, _) in table_mapping.items():
-        #print(table_acronym)
+        
         if table_acronym in file_name:
+
             # Load the config file
             with open(config_file, 'r') as f:
                 config = json.load(f)
@@ -575,16 +614,15 @@ def determine_configs(file_name, df_columns):
                         column_mapping[alternative] = core_attr  # Map alternatives to the primary name
             
             # Gather all core attributes and their alternatives into a set
-        
             core_and_alternative_columns = set(column_mapping.keys())
 
             # Filter and reorder core attributes based on their presence and order in the uploaded file's columns
             ordered_core_attributes = [column_mapping[col] for col in df_columns_lower if col in column_mapping]
-                        
+
             # Join the core_attributes list into a comma-separated string
             core_columns_string = ", ".join(ordered_core_attributes)
             #write_and_log(f"SQL command columns: {core_columns_string}")
-            #print( table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping)
+            #print(ordered_core_attributes)
 
             return table_name, ordered_core_attributes, core_columns_string, config, core_and_alternative_columns, column_mapping, table_mapping
 

@@ -25,8 +25,8 @@ if "file_2" not in st.session_state:
     st.session_state["file_2"] = None
 
 # File uploaders for two CSV files with state saving
-st.session_state["file_1"] = st.file_uploader("Upload first CSV file", type="csv")
-st.session_state["file_2"] = st.file_uploader("Upload second CSV file", type="csv")
+st.session_state["file_1"] = st.file_uploader("Upload first CSV file", type=["csv", "txt", "xls", "xlsx"])
+st.session_state["file_2"] = st.file_uploader("Upload second CSV file", type=["csv", "txt", "xls", "xlsx"])
 
 if st.button("Compare DB output to provider output") and st.session_state["file_1"] and st.session_state["file_2"]:
     # Proceed only if both files are uploaded

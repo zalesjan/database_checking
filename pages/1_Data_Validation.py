@@ -18,10 +18,15 @@ st.markdown("Here you can check your files and validate the data (columns, inter
 # FILE UPLOAD and ETL
 uploaded_file = st.file_uploader("Upload a file to be checked", type=["csv", "txt"])
 if uploaded_file:
-    df, uploaded_file_path = df_from_uploaded_file(uploaded_file)
+    df, uploaded_file_path = df_from_uploaded_file(uploaded_file, header_line_idx = None)
+    df_columns = {str(col).lower(): col for col in df.columns}
+    role ="VUK-stage"
+    table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping, header_line_idx = etl_process_df(role, uploaded_file.name, uploaded_file_path, df_columns, df)
 
-    table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(uploaded_file.name, df.columns, df)
-    
+    # Dynamically handle raw data role
+    if role in ["role_superuser_DB_VUK-raw_data", "VUK-stage"]:
+        df, uploaded_file_path = df_from_uploaded_file(uploaded_file_path, header_line_idx)
+
     # VALIDATION
     # PRESENCE OF KEY COLUMNS AND DATA (FORMAT) VALIDATION
     if st.button(f'**CHECK PRESENCE OF KEY COLUMNS AND DATA FORMAT RESTRICTIONS**'):

@@ -73,14 +73,14 @@ basic_query_standing = f"""
             """
 
 basic_query_lying = f"""                
-        
-			INSERT INTO basic_query_lying
+        INSERT INTO basic_query_lying
             SELECT 
 				plots.composed_site_id,
 				site_design.inventory_type,
 				plots.inventory_year,
 				p.p_num_plots,
                 COUNT(calc_basal_area.record_id)/((plots.sampled_area/10000)*p.p_num_plots) AS ntrees_ha_lying,
+				SUM(calc_basal_area.volume)/((plots.sampled_area)*p.p_num_plots) as volume,
                 MAX(calc_basal_area.diameter_1)/10 AS max_d1,
                 MIN(calc_basal_area.diameter_1)/10 AS min_d1,
                 AVG(calc_basal_area.diameter_1)/10 AS mean_d1,
@@ -109,11 +109,12 @@ basic_query_main_query = f"""
         standing.inventory_type,
         standing.inventory_year,
         standing.ntrees_ha_standing,
-        lying.ntrees_ha_lying,
         standing.ba_hectare_standing,
         standing.dbh_max_standing,
         standing.dbh_min_standing,
         standing.dbh_mean_standing,
+		lying.volume,
+		lying.ntrees_ha_lying,
 		lying.max_d1,
         lying.min_d1,
         lying.mean_d1,
@@ -122,7 +123,7 @@ basic_query_main_query = f"""
         lying.mean_d2
     FROM
         basic_query_standing standing
-    JOIN
+    LEFT JOIN
         basic_query_lying lying ON 
         standing.composed_site_id = lying.composed_site_id
         AND standing.inventory_type = lying.inventory_type
@@ -138,6 +139,7 @@ tree_staging_id =f"""
             t.composed_site_id = p.composed_site_id
             AND t.inventory_year = p.inventory_year
             AND t.inventory_id = p.inventory_id
+            AND t.circle_no IS NOT DISTINCT FROM p.circle_no
             AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
             and p.composed_site_id like %s;
         """
@@ -176,9 +178,9 @@ site_design_id =f"""
             and s.composed_site_id like %s;
         """
 move_data_to_tree = """
-        INSERT INTO public.trees (composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, epsg_code, udt)
+        INSERT INTO public.trees (composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, epsg_code, diameter_130, udt)
         SELECT 
-            composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, epsg_code, now()
+            composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, epsg_code, diameter_130, now()
         FROM
             public.tree_staging;
         """
@@ -214,7 +216,7 @@ logging.basicConfig(
 
 def select_role():
     # Define available roles
-    available_roles = ["EuFoRIa_trees_db", "role_vukoz_DB_PROD", "role_superuser_DB_old", "role_superuser_DB_development", "role_superuser_DB_VUK-raw_data"]
+    available_roles = ["role_superuser_DB_PROD", "role_vukoz_DB_PROD", "role_superuser_DB_old", "role_superuser_DB_development", "role_superuser_DB_VUK-raw_data"]
 
     # Create a select box for role selection
     selected_role = st.selectbox("Select PostgreSQL Role:", available_roles, index=3)
@@ -335,7 +337,7 @@ def load_data_with_copy_command(df, schema, file_path, table_name, column_mappin
     try:
         cur = conn.cursor()
         
-        if role != "VUK-raw_data":
+        if role != "role_superuser_DB_VUK-raw_data":
             # Count rows before insertion
             cur.execute(f"SELECT COUNT(*) FROM public.{table_name};")
             initial_row_count = cur.fetchone()[0]
@@ -348,7 +350,7 @@ def load_data_with_copy_command(df, schema, file_path, table_name, column_mappin
         # Execute COPY command
         cur.copy_expert(copy_command, copy_file_like_object)
 
-        if role != "VUK-raw_data":
+        if role != "role_superuser_DB_VUK-raw_data":
         # Count rows after insertion
             cur.execute(f"SELECT COUNT(*) FROM public.{table_name};")
             final_row_count = cur.fetchone()[0]

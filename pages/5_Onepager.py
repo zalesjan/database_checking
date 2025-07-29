@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 from modules.logs import write_and_log, do_action_after_role_check
 from modules.validate_files_module import find_previous_record_id_columns_from_mapping, run_parallel_plausibility_tests, value_counts_for_each_distinct_value, distinct_values_with_counts, validate_file, tree_smaller_than_threshold
@@ -16,18 +17,21 @@ def process_copy_all_files(sorted_files, role, institute = None):
     
     for name, file_object, _ in sorted_files:
 
-        unwanted_keywords = ["template", "basic_query", "with", "docx"]
+        unwanted_keywords = ["template", "query", "with", "docx"]
         if not any(keyword in name.lower() for keyword in unwanted_keywords):            
             # ETL
-            df, uploaded_file_path = df_from_uploaded_file(file_object)
+            df, uploaded_file_path = df_from_uploaded_file(file_object, header_line_idx = None)
             df_columns = {str(col).lower(): col for col in df.columns}
-            table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(role, name, df_columns, df)
-            
+            table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping, header_line_idx = etl_process_df(role, name, uploaded_file_path, df_columns, df)
+
             # Dynamically handle raw data role
-            if role in ["VUK-raw_data", "VUK-stage"]:
+            if role in ["role_superuser_DB_VUK-raw_data", "VUK-stage"]:
+                df, uploaded_file_path = df_from_uploaded_file(file_object, header_line_idx)
+                df_columns = {str(col).lower(): col for col in df.columns}
+
                 schema = table_name
                 table_name = (
-                    file_name.lower()
+                    name.lower()
                     .replace("-", "_")
                     .replace(".", "_")
                     .replace(" ", "_"))
@@ -112,7 +116,7 @@ def process_copy_all_files(sorted_files, role, institute = None):
                     
     st.success("All files copied to the database successfully.")    
 
-    if role not in ["VUK-raw_data", "VUK-stage"]:
+    if role not in ["role_superuser_DB_VUK-raw_data", "VUK-stage"]:
         do_query(truncate_calc_basal_area, role)
         basic_query_calc_basal_area_df, _ = do_query(basic_query_calc_basal_area, role, (f"%{institute}%",))
         do_query(truncate_no_plots_per_year, role)
@@ -177,9 +181,9 @@ if password_check():
             
             for name, file_object, _ in sorted_files:
 
-                df, uploaded_file_path = df_from_uploaded_file(file_object)       # Create DF (dataframe_actions)
+                df, uploaded_file_path = df_from_uploaded_file(file_object, header_line_idx= None)      # Create DF (dataframe_actions)
 
-                table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(role, name, df.columns, df) # ETL (dataframe_actions)
+                table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping, header_line_idx = etl_process_df(role, name, uploaded_file_path, df.columns, df) # ETL (dataframe_actions)
 
                 # Store Institute if it's "sites"
                 if table_name == "sites":
@@ -282,7 +286,7 @@ if password_check():
         
         # 🔹 Single Button to Copy All Files to Database at the End
         if st.button("Copy all files to Database"):
-            if role == "moje":  # This role requires confirmation before proceeding
+            if role == "role_superuser_DB_PROD":  # This role requires confirmation before proceeding
                 st.session_state['upload_confirmation_needed'] = True
                 st.rerun()
 
@@ -302,16 +306,16 @@ if password_check():
                     st.session_state['upload_confirmation_needed'] = False  # Reset after success
             
         if st.button("Crap, this upload went terribly wrong, I want to delete all data from this institute"):
-            for file in sorted_files:
-                lower_file_name = file.name.lower()  # FIXED: Call `.lower()`
+            for name, file_object, _ in sorted_files:
+                lower_file_name = name.lower()  # FIXED: Call `.lower()`
                 if "sites" in lower_file_name:
                     df, _ = df_from_uploaded_file(file)  # Load DF to extract institute
                     institute = df["institute"].iloc[0]
 
             for file in reversed(sorted_files):
                 # ETL
-                df, uploaded_file_path = df_from_uploaded_file(file)
-                table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping = etl_process_df(file.name, df.columns, df)
+                df, uploaded_file_path = df_from_uploaded_file(file, header_line_idx)
+                table_name, ordered_core_attributes, extra_columns, ignored_columns, config, column_mapping, table_mapping, header_line_idx = etl_process_df(role, name, uploaded_file_path, df.columns, df)
 
                 table_to_delete = table_mapping.get(file.name, (None, None, None, None))[0]
                 
@@ -332,40 +336,47 @@ if password_check():
                 st.dataframe(show_counts_of_all_df)  # Display the result as a DataFrame
 
     if st.button("Synchronize the raw data from sharepoint"):  
-        institute = "VUK"
+        institute = "WR"
         sanitized_institute = sanitize_institute_name(institute)
         
-        role = "postgres_dev"
-        sharepoint_local_path = r"C:\Users\zalesak\vukoz.cz\WILDCARD_EUFORIA_DATA - EUFoRIa Data Upload\VUKOZ"
+        role = "role_superuser_DB_VUK-raw_data"
+        sharepoint_local_path = r"C:\Users\zalesak\vukoz.cz\WILDCARD_EUFORIA_DATA - EUFoRIa Data Upload\WR"
+        #"C:\Users\zalesak\vukoz.cz\WILDCARD_EUFORIA_DATA - EUFoRIa Data Upload\VUKOZ"
         #"C:\Users\zalesak\Downloads\Databáze vývoj\data\ver2.0\almost approved"
-        #"C:\Users\zalesak\vukoz.cz\WILDCARD_EUFORIA_DATA - EUFoRIa Data Upload\BFNP"
+        #"C:\Users\zalesak\vukoz.cz\WILDCARD_EUFORIA_DATA - EUFoRIa Data Upload\WR"
         # Define accepted file extensions
         accepted_extensions = ('.csv', '.txt', '.xls', '.xlsx')
         
-        
-        # Collect matching files recursively
-        sharepoint_files = []
-
+            
+        file_order = []  # holds tuples: (file_name, full_path, order_value)
         for root, _, files in os.walk(sharepoint_local_path):
             for file in files:
-                file_name = extract_file_name(file)
                 if file.lower().endswith(accepted_extensions):
                     full_path = os.path.join(root, file)
-                    sharepoint_files.append(full_path)
-        
-        if role != "VUK-raw_data":
-            file_order = [determine_order(file_name) for file in sharepoint_files]
-            file_order.sort(key=lambda x: x[1])  # Sort by order value (lower number = higher priority)
-            sorted_files = [file_tuple[0] for file_tuple in file_order]    # Extract sorted file list
-        else:    
-            # Optional: Sort alphabetically or by any other rule
-            sorted_files = sharepoint_files.sort()
+                    file_name = extract_file_name(file).lower()
+                    
+                    # ✅ Safe fallback for missing order
+                    order_result = determine_order(file_name)
+                    if order_result is None:
+                        print(f"⚠️ No order for {file_name}, using default 999")
+                        order_number = 999
+                    elif isinstance(order_result, tuple):
+                        # if determine_order returns something like ("wr_test.txt", 4)
+                        order_number = order_result[1]
+                    else:
+                        order_number = order_result
 
-        # Preview
+                    file_order.append((file_name, full_path, order_number))
+
+        # ✅ Sort by order number
+        file_order.sort(key=lambda x: x[2])  # x[2] = order_number (int)
+
+        sorted_files = file_order
+
         print(f"🗂️ Found {len(sorted_files)} files.")
-        #for f in sorted_files[:70]:  # Show the first 5
-            #print(f" - {f}")
+        for name, path, order in sorted_files:
+            print(f"  ✅ {name} | {path} | order: {order}")
 
         process_copy_all_files(sorted_files, role, institute)
-        
         write_and_log(f"synchronize_raw_data is at its end.")
+          
