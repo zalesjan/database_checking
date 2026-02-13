@@ -14,7 +14,7 @@ And/Or
 
 The Data Curator shall carry-out data queries and provide specific data assemblies on the demand of the Data User)
 
-**B.  CONDITIONS of DATA USE**
+**B. TERMS and CONDITIONS of DATA USE**
 
 The data User has rights to use the data only within the framework of the WILDCARD project exclusively for purposes specified in the EuFoRIa WILDCARD Project Proposal Parts A and B.
 
