@@ -8,10 +8,10 @@ from modules.logs import write_and_log
 from modules.dataframe_actions import biodiversity_determine_copy_command_with_ignore, determine_copy_command_with_ignore, prepare_biodiversity_dataframe_for_copy,  prepare_dataframe_for_copy, input_mapping
 
 #queries used in helper operations
-truncate_calc_basal_area = f"""TRUNCATE TABLE calc_basal_area;"""
-truncate_no_plots_per_year = f"""TRUNCATE TABLE no_plots_per_year;"""
-truncate_lying = f"""TRUNCATE TABLE basic_query_standing;"""
-truncate_standing = f"""TRUNCATE TABLE basic_query_lying;"""
+truncate_calc_basal_area = f"""TRUNCATE TABLE query.calc_basal_area;"""
+truncate_no_plots_per_year = f"""TRUNCATE TABLE query.no_plots_per_year;"""
+truncate_lying = f"""TRUNCATE TABLE query.basic_query_standing;"""
+truncate_standing = f"""TRUNCATE TABLE query.basic_query_lying;"""
 
 basic_query_main_query = f""" 
     SELECT 
@@ -34,9 +34,9 @@ basic_query_main_query = f"""
         lying.min_d2,
         lying.mean_d2
     FROM
-        basic_query_standing standing
+        query.basic_query_standing standing
     LEFT JOIN
-        basic_query_lying lying ON 
+        query.basic_query_lying lying ON 
         standing.composed_site_id = lying.composed_site_id
         AND standing.inventory_type = lying.inventory_type
         AND standing.inventory_year = lying.inventory_year
@@ -52,9 +52,9 @@ tree_staging_id =f"""
             AND t.inventory_year = p.inventory_year
             AND t.inventory_id = p.inventory_id
             AND t.circle_no IS NOT DISTINCT FROM p.circle_no
-            AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
-            and p.composed_site_id like %s;
+            AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id);
         """
+# and p.composed_site_id like %s;
 
 cwd_id =f"""
         UPDATE cwd t
@@ -64,9 +64,9 @@ cwd_id =f"""
             t.composed_site_id = p.composed_site_id
             AND t.inventory_year = p.inventory_year
             AND t.inventory_id = p.inventory_id
-            AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id)
-            and p.composed_site_id like %s;
+            AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id);
         """
+# and p.composed_site_id like %s;
 
 plots_id =f"""
         UPDATE plots p
@@ -77,10 +77,9 @@ plots_id =f"""
             AND p.inventory_id = d.inventory_id
             AND p.inventory_year = d.inventory_year
             AND d.circle_radius IS NOT DISTINCT FROM p.circle_radius
-            AND d.circle_no IS NOT DISTINCT FROM p.circle_no
-			and d.composed_site_id like %s;
+            AND d.circle_no IS NOT DISTINCT FROM p.circle_no;
         """
-
+# and d.composed_site_id like %s;
 
 
 site_design_id =f"""
@@ -237,6 +236,11 @@ def load_data_with_copy_command(df, schema, table_name, column_mapping, ordered_
         # Prepare the DataFrame to include `extended_attributes`
         df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns)
     
+    # Convert geom to geom with EPSG code
+    if 'geom' in df_ready.columns and 'epsg_code' in df_ready.columns:
+        df_ready['geom'] = df_ready.apply(lambda x: f"SRID={str(x["epsg_code"])};{x["geom"]}" if x['epsg_code'] != '\\N' and x['geom'] != '\\N' else x['geom'], axis=1)
+        # df_ready["geom"] = ("SRID=" + df_ready["epsg_code"].astype(str) + ";" + df_ready["geom"])
+
     # Connect to the database and execute the COPY command
     conn = get_db_connection(role)
     if conn is None:
