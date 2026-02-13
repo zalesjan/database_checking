@@ -87,8 +87,7 @@ site_design_id =f"""
 		SET site_record_id = s.record_id
 		FROM sites s
 		WHERE 
-			d.composed_site_id = s.composed_site_id
-            and s.composed_site_id like %s;
+			d.composed_site_id = s.composed_site_id;
         """
 
 move_data_to_tree = """
