@@ -55,7 +55,7 @@ if password_check():
     # HELPER FUNCTIONS (set the record_id values, moving to tree)
     helper_operations = {
         "Move Data to Tree Table": move_data_to_tree, 
-        "Update unique_plot_id in tree_staging": tree_staging_id
+        "Update plot_record_id in tree_staging": tree_staging_id
         }
 
     helper_operation_key = st.selectbox("CHOOSE A HELPER OPERATION", list(helper_operations.keys()))

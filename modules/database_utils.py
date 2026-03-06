@@ -45,37 +45,40 @@ basic_query_main_query = f"""
 
 tree_staging_id =f"""
         UPDATE tree_staging t
-        SET plot_record_id = p.record_id
+        SET plot_record_id = p.plot_record_id
         FROM plots p
         WHERE 
             t.composed_site_id = p.composed_site_id
             AND t.inventory_year = p.inventory_year
             AND t.inventory_id = p.inventory_id
             AND t.circle_no IS NOT DISTINCT FROM p.circle_no
-            AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id);
+            AND t.inventory_type = p.inventory_type
+            AND t.plot_id IS NOT DISTINCT FROM p.plot_id;
         """
 # and p.composed_site_id like %s;
 
 cwd_id =f"""
         UPDATE cwd t
-        SET unique_plot_id = p.record_id
+        SET plot_record_id = p.plot_record_id
         FROM plots p
         WHERE 
             t.composed_site_id = p.composed_site_id
             AND t.inventory_year = p.inventory_year
             AND t.inventory_id = p.inventory_id
-            AND (t.lpi_id = p.lpi_id OR t.spi_id = p.spi_id);
+            AND t.inventory_type = p.inventory_type
+            AND t.plot_id IS NOT DISTINCT FROM p.plot_id;
         """
 # and p.composed_site_id like %s;
 
 plots_id =f"""
         UPDATE plots p
-        SET site_design_record_id = d.record_id
+        SET site_design_record_id = d.site_design_record_id
         FROM site_design d
         WHERE 
             p.composed_site_id = d.composed_site_id
             AND p.inventory_id = d.inventory_id
             AND p.inventory_year = d.inventory_year
+            AND p.inventory_type = d.inventory_type
             AND d.circle_radius IS NOT DISTINCT FROM p.circle_radius
             AND d.circle_no IS NOT DISTINCT FROM p.circle_no;
         """
@@ -84,7 +87,7 @@ plots_id =f"""
 
 site_design_id =f"""
         UPDATE site_design d
-		SET site_record_id = s.record_id
+		SET site_record_id = s.site_record_id
 		FROM sites s
 		WHERE 
 			d.composed_site_id = s.composed_site_id;
@@ -92,9 +95,9 @@ site_design_id =f"""
 
 move_data_to_tree = """
         INSERT INTO public.trees 
-        (composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, epsg_code, diameter_130, udt)
+        (composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, diameter_130, created_at)
         SELECT 
-            composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, epsg_code, diameter_130, now()
+            composed_site_id, plot_record_id, tree_id, stem_id, piece_id, inventory_year, consistent_id, life, position, integrity, height, date, full_scientific, dbh, decay, diameter_1, diameter_2, length, geom, extended_attributes, circle_no, inventory_id, volume, diameter_130, now()
         FROM
             public.tree_staging;
         """
@@ -103,18 +106,18 @@ truncate_tree_staging = """truncate tree_staging"""
 show_counts_of_all = f"""
         SELECT
             COUNT(DISTINCT sites.institute)AS institutes,
-            COUNT (DISTINCT sites.record_id) AS count_sites,
-            COUNT(DISTINCT site_design.record_id) AS count_site_designs,
-            COUNT(DISTINCT plots.record_id)AS count_plots,
-            COUNT(DISTINCT trees.record_id)AS count_trees 
+            COUNT (DISTINCT sites.site_record_id) AS count_sites,
+            COUNT(DISTINCT site_design.site_design_record_id) AS count_site_designs,
+            COUNT(DISTINCT plots.plot_record_id)AS count_plots,
+            COUNT(DISTINCT trees.tree_record_id)AS count_trees 
         FROM
             public.sites
         JOIN
-            public.site_design ON sites.record_id = site_design.site_record_id
+            public.site_design ON sites.site_record_id = site_design.site_record_id
         JOIN
-            public.plots ON site_design.record_id = plots.site_design_record_id
+            public.plots ON site_design.site_design_record_id = plots.site_design_record_id
         JOIN
-            public.trees ON plots.record_id = trees.plot_record_id    
+            public.trees ON plots.plot_record_id = trees.plot_record_id    
         """
 
 # Set up logging
@@ -236,9 +239,11 @@ def load_data_with_copy_command(df, schema, table_name, column_mapping, ordered_
         df_ready = prepare_dataframe_for_copy(df, ordered_core_attributes, extra_columns, column_mapping, table_name, ignored_columns)
     
     # Convert geom to geom with EPSG code
-    if 'geom' in df_ready.columns and 'epsg_code' in df_ready.columns:
-        df_ready['geom'] = df_ready.apply(lambda x: f"SRID={str(x["epsg_code"])};{x["geom"]}" if x['epsg_code'] != '\\N' and x['geom'] != '\\N' else x['geom'], axis=1)
-        # df_ready["geom"] = ("SRID=" + df_ready["epsg_code"].astype(str) + ";" + df_ready["geom"])
+    if 'geom' in df_ready.columns:
+        if 'epsg_code' in df_ready.columns:
+            df_ready['geom'] = df_ready.apply(lambda x: f"SRID={str(x["epsg_code"])};{x["geom"]}" if x['epsg_code'] != '\\N' and x['geom'] != '\\N' else x['geom'], axis=1)
+            # df_ready["geom"] = ("SRID=" + df_ready["epsg_code"].astype(str) + ";" + df_ready["geom"])
+
 
     # Connect to the database and execute the COPY command
     conn = get_db_connection(role)

@@ -15,5 +15,5 @@ if uploaded_file:
     
     # PLAUSIBILITY TEST
     if table_name == "tree_staging": 
-        df_integrity_lpi_id, df_integrity_spi_id = dataframe_for_tree_integrity(df)
-        run_parallel_plausibility_tests(df_integrity_lpi_id, df_integrity_spi_id, df, uploaded_file)
+        df_integrity_plot_id = dataframe_for_tree_integrity(df)
+        run_parallel_plausibility_tests(df_integrity_plot_id, df, uploaded_file)

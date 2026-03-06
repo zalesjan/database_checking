@@ -4,12 +4,6 @@
         "composed_site_id":  {
         "alternatives": ["composed_site_id", "composite_site_id"],
         "non_null": true
-        }, 
-        "lpi_id": {
-            "alternatives": ["lpi_id", "lpiid", "lpi-id", "lp_i_id"]
-        },
-        "spi_id": {
-            "alternatives": ["spi_id", "spiid", "spi-id", "sp_i_id"]
         },
         "inventory_year": {
             "alternatives": ["inventory_year", "inventoryyear", "inventory-year", "inv_year"],
@@ -31,12 +25,22 @@
         },
         "inventory_id":  {
         "alternatives": ["inventory_id"]
+        },
+        "plot_id": {
+            "alternatives": ["plot_id"],
+            "not_null": true
+        },
+        "inventory_type": {
+            "alternatives": ["inventory_type"],
+            "not_null": true
         }
       }, 
     "required_non_null_columns": [
         "composed_site_id",
         "tree_id",
         "inventory_year",
-        "full_scientific"]
+        "full_scientific",
+        "plot_id",
+        "inventory_type"]
 }
     

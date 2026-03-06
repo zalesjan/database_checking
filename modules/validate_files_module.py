@@ -210,12 +210,12 @@ def plausibility_test(df, xpi, base_columns):
 #check dbh for smaller than threshold
 def tree_smaller_than_threshold(institute, role):
     dbh_smaller_than_threshold = f"""
-    SELECT t.composed_site_id, t.record_id, t.dbh, d.standing_alive_threshold 
+    SELECT t.composed_site_id, t.tree_record_id, t.dbh, d.standing_alive_threshold 
     FROM public.trees t
     JOIN public.plots p
-        ON plot_record_id = p.record_id
+        ON t.plot_record_id = p.plot_record_id
     JOIN site_design d
-        ON site_design_record_id = d.record_id
+        ON p.site_design_record_id = d.site_design_record_id
     where t.life like 'A'
     and t.dbh < d.standing_alive_threshold
     and p.composed_site_id like %s;
@@ -370,19 +370,16 @@ def run_tests_in_background(df_integrity, df, file, xpi):
     
 import concurrent.futures 
 
-def run_parallel_plausibility_tests(df_integrity_lpi_id, df_integrity_spi_id, df, file):
+def run_parallel_plausibility_tests(df_integrity_plot_id, df, file):
     """Run tests in parallel for different datasets."""
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        future_lpi = executor.submit(run_tests_in_background, df_integrity_lpi_id, df, file.name, 'lpi_id')
-        future_spi = executor.submit(run_tests_in_background, df_integrity_spi_id, df, file.name, 'spi_id')
+        future_plot = executor.submit(run_tests_in_background, df_integrity_plot_id, df, file.name, ['inventory_type','plot_id'])
         
         # Retrieve results when finished
-        output_data_lpi = future_lpi.result()
-        output_data_spi = future_spi.result()
+        output_data_plot = future_plot.result()
         
         write_and_log("Tests were run in the background. Results will be saved in JSON file.")
-        write_and_log(output_data_lpi)
-        write_and_log(output_data_spi)
+        write_and_log(output_data_plot)
 
 def file_comparison(file_1, file_2):
     # Load the files into DataFrames

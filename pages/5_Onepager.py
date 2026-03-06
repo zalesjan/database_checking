@@ -55,7 +55,7 @@ def process_copy_all_files(sorted_files, role, institute = None):
                 write_and_log(f"✅ Updated {tree_staging_updated_rows} rows in tree_staging and {plots_updated_rows} rows in plots.")
                 
                 moved_data_to_tree_from_staging, _ = do_query(move_data_to_tree, role)
-                do_query(truncate_tree_staging, role)
+                # do_query(truncate_tree_staging, role)
                 write_and_log(f"✅ {moved_data_to_tree_from_staging} rows moved from tree_staging to tree, PS: tree_staging was truncated and is therefore ready for next tree table")
 
                 tree_smaller_than_threshold(institute, role) 
@@ -105,6 +105,7 @@ if password_check():
             file_name= file_name.lower()
 
             order = determine_order(file_name)
+
             file_order.append((file_name, file_path, order))  # collect the pair
 
         file_order.sort(key=lambda x: x[2][1])  # sort by order
@@ -171,7 +172,8 @@ if password_check():
                                         # Foreign Key Validation: Ensure the uploaded table has valid parent references
                     if previous_table_name:
                         # 🔹 Fetch the correct primary key count for the previous table before comparison
-                        get_fk_count = f"SELECT COUNT(DISTINCT record_id) FROM {previous_table_name} WHERE composed_site_id like %s"
+                        record_id_name = previous_table_name if previous_table_name[-1].lower() != 's' else previous_table_name[:-1]
+                        get_fk_count = f"SELECT COUNT(DISTINCT {record_id_name}_record_id) FROM {previous_table_name} WHERE composed_site_id like %s"
                         _, previous_table_count_df = do_query(get_fk_count, role, (f"%{institute}%", ))
                         print(f"🔍 Debugging `previous_table_count_df`:\n{previous_table_count_df}")
 
@@ -214,8 +216,8 @@ if password_check():
                 
                 # PLAUSIBILITY TEST
                 if table_name == "tree_staging": 
-                    df_integrity_lpi_id, df_integrity_spi_id = dataframe_for_tree_integrity(df)
-                    run_parallel_plausibility_tests(df_integrity_lpi_id, df_integrity_spi_id, df, file)
+                    df_integrity_plot_id = dataframe_for_tree_integrity(df)
+                    run_parallel_plausibility_tests(df_integrity_plot_id, df, file)
 
         
         # 🔹 Single Button to Copy All Files to Database at the End

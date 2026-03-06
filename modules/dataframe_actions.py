@@ -426,10 +426,12 @@ input_mapping = {
         "sites": ("sites", "expectations/expe_sites.json", 1, None, None),
         "design": ("site_design", "expectations/expe_site_design.json", 2, ["composed_site_id"], {"plots_list": ["plots_list"]}),
         "plots": ("plots", "expectations/expe_plots.json", 3, ["composed_site_id", "inventory_year", "inventory_id", "circle_radius"], None),
-        "standing": ("tree_staging", "expectations/expe_standing.json", 4, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
-        "lying": ("tree_staging", "expectations/expe_lying.json", 5, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
-        "cwd": ("cwd", "expectations/expe_cwd.json", 6, [], None),
-        "metadata": ("metadata", "expectations/expe_metadata.json", 7, [], None),
+        "trees": ("tree_staging", "expectations/expe_trees.json", 4, ["composed_site_id", "inventory_year", "inventory_id", "plot_id", "inventory_type", "circle_no", "circle_radius"], None),
+        "cwd": ("cwd", "expectations/expe_cwd.json", 5, [], None),
+        "metadata": ("metadata", "expectations/expe_metadata.json", 6, [], None),
+        # These two don't work right now, for future compatibility, might delete
+        "standing": ("tree_staging", "expectations/expe_standing.json", 7, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
+        "lying": ("tree_staging", "expectations/expe_lying.json", 8, ["composed_site_id", "inventory_year", "inventory_id", "lpi_id", "spi_id", "circle_no", "circle_radius"], None),
         # Multiple aliases for the same biodiversity configuration
         "biodiversity": common_biodiversity_config,
         "bryo": common_biodiversity_config,
@@ -497,7 +499,7 @@ def dataframe_for_tree_integrity(df):
     df = df[df['consistent_id'] == "Y"].copy()
     
     # Define the columns needed for the integrity checks
-    columns_to_check = ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'lpi_id', 'tree_id', 'dbh', 
+    columns_to_check = ['site_id', 'wildcard_sub_id', 'composed_site_id', 'inventory_type', 'plot_id', 'tree_id', 'dbh', 
                         'position', 'life', 'integrity', 'full_scientific', 'inventory_year', 'decay', 'consistent_id']
     
     # Filter only existing columns in df
@@ -505,49 +507,32 @@ def dataframe_for_tree_integrity(df):
     df_for_integrity_checks = df[existing_columns].copy()
 
     # Step 1: Sort the data to ensure correct chronological order within groups
-    df_integrity_lpi_id = df_for_integrity_checks.sort_values(
-        by=[col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'lpi_id', 'tree_id', 'inventory_year'] if col in df_for_integrity_checks.columns]
-    )
-    df_integrity_spi_id = df_for_integrity_checks.sort_values(
-        by=[col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'tree_id', 'inventory_year'] if col in df_for_integrity_checks.columns]
+    df_integrity_plot_id = df_for_integrity_checks.sort_values(
+        by=[col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'inventory_type', 'plot_id', 'tree_id', 'inventory_year'] if col in df_for_integrity_checks.columns]
     )
     
-    # Step 2: Remove rows where lpi_id or spi_id is missing or invalid
-    df_filtered_lpi_id = df_integrity_lpi_id[~df_integrity_lpi_id['lpi_id'].isin(['\\N', None, ''])]
-    df_filtered_spi_id = df_integrity_spi_id[~df_integrity_spi_id['spi_id'].isin(['\\N', None, ''])]
+    # Step 2: Remove rows where plot_id is missing or invalid
+    df_filtered_plot_id = df_integrity_plot_id[~df_integrity_plot_id['plot_id'].isin(['\\N', None, ''])]
 
     # Step 3: If filtering results in empty DataFrames, return only the affected DataFrame as empty
-    if df_filtered_lpi_id.empty:
-        print("⚠️ Warning: No valid rows left after filtering lpi_id. Returning empty DataFrame.")
-        df_filtered_lpi_id = pd.DataFrame(columns=existing_columns)  # Ensure the structure is maintained
-    
-    if df_filtered_spi_id.empty:
-        print("⚠️ Warning: No valid rows left after filtering spi_id. Returning empty DataFrame.")
-        df_filtered_spi_id = pd.DataFrame(columns=existing_columns)  # Ensure the structure is maintained
+    if df_filtered_plot_id.empty:
+        print("⚠️ Warning: No valid rows left after filtering plot_id. Returning empty DataFrame.")
+        df_filtered_plot_id = pd.DataFrame(columns=existing_columns)  # Ensure the structure is maintained
 
     # Step 4: Use groupby (without inventory_year) and create previous values for each column
-    if not df_filtered_lpi_id.empty:
-        grouped_lpi_id = df_filtered_lpi_id.groupby(
-            [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'lpi_id', 'tree_id'] if col in df_filtered_lpi_id.columns]
+    if not df_filtered_plot_id.empty:
+        grouped_plot_id = df_filtered_plot_id.groupby(
+            [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'inventory_tye', 'plot_id', 'tree_id'] if col in df_filtered_plot_id.columns]
         )
         for column in existing_columns:
             if column != 'inventory_year':  # Skip inventory_year for the shift
-                df_filtered_lpi_id[f'previous_{column}'] = grouped_lpi_id[column].shift(1)
-
-    if not df_filtered_spi_id.empty:
-        grouped_spi_id = df_filtered_spi_id.groupby(
-            [col for col in ['site_id', 'wildcard_sub_id', 'composed_site_id', 'spi_id', 'tree_id'] if col in df_filtered_spi_id.columns]
-        )
-        for column in existing_columns:
-            if column != 'inventory_year':  # Skip inventory_year for the shift
-                df_filtered_spi_id[f'previous_{column}'] = grouped_spi_id[column].shift(1)
+                df_filtered_plot_id[f'previous_{column}'] = grouped_plot_id[column].shift(1)
 
     # Debugging output
     print("✅ DataFrame with current and previous values:")
-    print(df_filtered_lpi_id.head())  
-    print(df_filtered_spi_id.head())  
+    print(df_filtered_plot_id.head())  
 
-    return df_filtered_lpi_id, df_filtered_spi_id
+    return df_filtered_plot_id
 
 def do_action_after_role_check(role, do_action, *args, **kwargs):
     if role == "role_superuser_DB_development":

@@ -8,16 +8,6 @@
         "alternatives": ["site_name", "sitename", "site-name", "location_name"],
         "non_null": true
       },
-      "lpi_id": {
-        "alternatives": ["lpi_id", "lpiid", "lpi-id", "lp_i_id", "lpid", "lpi_code"],
-        "non_null": true,
-        "is_numeric": true
-      },
-      "spi_id": {
-        "alternatives": ["spi_id", "spiid", "spi-id", "sp_i_id", "spid", "spi_code"],
-        "non_null": true,
-        "is_numeric": true
-      },
       "circle_no": {
         "alternatives": ["circle_no", "circleno", "circle-number", "circle_num", "circle_id", "circle_number"],
         "is_numeric": true,
@@ -61,6 +51,12 @@
       },
       "epsg_code": {
         "alternatives": ["epsg_code", "epsg"]
+      },
+      "plot_id": {
+        "alternatives": ["plot_id", "spi_id", "lpi_id"]
+      },
+      "inventory_type": {
+        "alternatives": ["inventory_type"]
       }
     },
     "required_non_null_columns": [
@@ -68,12 +64,12 @@
       "site_id",
       "site_name",
       "wildcard_sub_id",
-      "lpi_id",
-      "spi_id",
       "inventory_year",
       "consistent_id_standing",
       "consistent_id_lying",
-      "geom"
+      "geom",
+      "plot_id",
+      "inventory_type"
     ]
   }
   

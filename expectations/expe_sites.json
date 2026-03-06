@@ -11,8 +11,8 @@
         "alternatives": ["site_id", "siteid", "site-id", "site_id", "res_id_inst"],
         "non_null": true
       },
-      "reserve_name": {
-        "alternatives": ["res_name", "reserve_name"],
+      "site_name": {
+        "alternatives": ["site_name","res_name", "reserve_name"],
         "non_null": true
       },
       "wildcard_sub_id": {
@@ -35,8 +35,8 @@
         "alternatives": ["soil_nutrient", "confirmed_his_soil-nutrient"],
         "non_null": true
       },
-      "forest_type": {
-        "alternatives": ["forest_type", "his_forest_type", "confirmed_his_fortype"],
+      "his_fortype": {
+        "alternatives": ["his_fortype","forest_type", "his_forest_type", "confirmed_his_fortype"],
         "non_null": true
       },
       "eea_fortype": {
@@ -62,7 +62,7 @@
     },
     "required_non_null_columns": [
       "site_id",
-      "reserve_name",
+      "site_name",
       "wildcard_id",
       "institute"
     ]
