@@ -1,0 +1,19 @@
+{
+  "table_token": "cwd",
+  "db_table": "cwd",
+  "update_record_id": "cwd_record_id",
+  "additional_columns_allowed": true,
+  "columns": {
+    "institute": {"aliases": ["institute"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
+    "site_id": {"aliases": ["site_id"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
+    "wildcard_sub_id": {"aliases": ["wildcard_sub_id"], "dtype": "string", "mandatory_upload": false, "mandatory_update": false, "not_null": false},
+    "composed_site_id": {"aliases": ["composed_site_id"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
+    "inventory_id": {"aliases": ["inventory_id"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
+    "inventory_type": {"aliases": ["inventory_type"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true, "allowed_values": ["SPI", "LPI"]},
+    "plot_id": {"aliases": ["plot_id"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
+    "inventory_year": {"aliases": ["inventory_year"], "dtype": "int", "mandatory_upload": true, "mandatory_update": false, "not_null": true, "min": 1900, "max": "current_year", "unit": "year"},
+    "full_scientific": {"aliases": ["full_scientific"], "dtype": "string", "mandatory_upload": false, "mandatory_update": false, "not_null": false},
+    "decay": {"aliases": ["decay"], "dtype": "float", "mandatory_upload": false, "mandatory_update": false, "not_null": false, "min": 0, "max": 5},
+    "volume": {"aliases": ["volume"], "dtype": "float", "mandatory_upload": true, "mandatory_update": false, "not_null": true, "min": 0, "unit": "m3"}
+  }
+}
