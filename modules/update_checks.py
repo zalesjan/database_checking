@@ -135,6 +135,29 @@ def load_expectation(table_token: str) -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+def limit_for_display(value: Any, max_string_len: int = 180, max_list_items: int = 5, key: Optional[str] = None) -> Any:
+    if isinstance(value, str):
+        current_limit = 100 if key == "value" else max_string_len
+        if len(value) <= current_limit:
+            return value
+        return value[:current_limit] + f"... [truncated {len(value) - current_limit} chars]"
+
+    if isinstance(value, list):
+        shortened = [
+            limit_for_display(item, max_string_len=max_string_len, max_list_items=max_list_items)
+            for item in value[:max_list_items]
+        ]
+        if len(value) > max_list_items:
+            shortened.append(f"... [{len(value) - max_list_items} more items]")
+        return shortened
+
+    if isinstance(value, dict):
+        return {
+            k: limit_for_display(v, max_string_len=max_string_len, max_list_items=max_list_items, key=k)
+            for k, v in value.items()
+        }
+
+    return value
 
 def parse_filename(file_name: str) -> Optional[Dict[str, Any]]:
     lowered = file_name.strip().lower()
@@ -863,7 +886,8 @@ def render_result(result: ValidationResult) -> None:
             )
 
             if issue.details:
-                st.caption(str(issue.details))
+                display_details = limit_for_display(issue.details)
+                st.json(display_details, expanded=False)
 
     st.markdown("### Manual review")
     units = result.manual_review.get("units", {})
