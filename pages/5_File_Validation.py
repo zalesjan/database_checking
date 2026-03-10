@@ -9,10 +9,10 @@ from modules.update_checks import (
 st.title("File Upload and Validation")
 st.markdown(
     """
-Upload one or more CSV files for validation.
+Upload one or more TXT files for validation.
 
 Rules:
-- filename must follow `DATATYPE_INSTITUTE_TABLE(_other).csv`
+- filename must follow `DATATYPE_INSTITUTE_TABLE(_other).txt`
 - allowed table tokens: `design`, `plots`, `trees`, `cwd`, `metadata`
 - file must be UTF-8, TAB-delimited
 - empty values should be `\\N`
@@ -23,7 +23,7 @@ Rules:
 
 uploaded_files = st.file_uploader(
     "Upload file(s) to validate",
-    type=["csv"],
+    type=["txt"],
     accept_multiple_files=True,
 )
 

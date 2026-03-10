@@ -52,7 +52,7 @@ TABLE_CONFIG = {
 
 RECORD_ID_PATTERN = re.compile(r".*_record_id$", re.IGNORECASE)
 FILENAME_RE = re.compile(
-    r"^(upload|update|query)_(?P<institute>.+?)_(design|plots|trees|cwd|metadata)(?:_(?P<other>.+))?\.csv$",
+    r"^(upload|update|query)_(?P<institute>.+?)_(design|plots|trees|cwd|metadata)(?:_(?P<other>.+))?\.txt$",
     re.IGNORECASE,
 )
 
