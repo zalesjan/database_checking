@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from shapely import from_wkt
+from shapely.validation import explain_validity
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -299,21 +301,34 @@ def split_inventory_id(value: Any) -> Optional[Dict[str, str]]:
 }
 
 
-def parse_ewkt(value: Any) -> Tuple[bool, Optional[int], Optional[str]]:
+def parse_ewkt(value: Any) -> Tuple[bool, Optional[int], Optional[str], Optional[str]]:
+    """
+    Returns:
+        ok, srid, wkt, error_message
+    """
     if pd.isna(value):
-        return True, None, None
+        return True, None, None, None
 
     text = str(value).strip()
     match = EWKT_RE.match(text)
     if not match:
-        return False, None, None
+        return False, None, None, "Value is not valid EWKT."
 
     srid = int(match.group(1))
     wkt = match.group(2).strip()
-    if not WKT_RE.match(wkt):
-        return False, srid, wkt
 
-    return True, srid, wkt
+    if not WKT_RE.match(wkt):
+        return False, srid, wkt, "WKT does not start with a recognised geometry type."
+
+    try:
+        geom = from_wkt(wkt)
+    except Exception as exc:
+        return False, srid, wkt, f"WKT could not be parsed: {exc}"
+
+    if not geom.is_valid:
+        return False, srid, wkt, f"Geometry is invalid: {explain_validity(geom)}"
+
+    return True, srid, wkt, None
 
 
 def extract_first_coords(wkt: str) -> Optional[Tuple[float, float]]:
@@ -647,20 +662,9 @@ def validate_column_rules(
                     rows=[int(i) + 2 for i in bad_rows[:50]],
                 )
 
-        elif dtype == "date":
-            dt = pd.to_datetime(series, errors="coerce")
-            bad_rows = df.index[dt.isna() & series.notna()].tolist()
-            if bad_rows:
-                result.add_issue(
-                    "ERROR",
-                    "type.date",
-                    f"Column '{actual_col}' contains invalid dates.",
-                    column=actual_col,
-                    rows=[int(i) + 2 for i in bad_rows[:50]],
-                )
-
         elif dtype == "ewkt":
             invalid_rows = []
+            invalid_details = []
             implausible_rows = []
             wrong_srid_rows = []
             srids = []
@@ -668,10 +672,19 @@ def validate_column_rules(
             allowed_srids = parsed.get("allowed_srids")
 
             for idx, value in series.items():
-                ok, srid, wkt = parse_ewkt(value)
+                ok, srid, wkt, geom_error = parse_ewkt(value)
+
                 if not ok:
                     if pd.notna(value):
-                        invalid_rows.append(int(idx) + 2)
+                        row_number = int(idx) + 2
+                        invalid_rows.append(row_number)
+                        invalid_details.append(
+                            {
+                                "row": row_number,
+                                "value": value,
+                                "reason": geom_error,
+                            }
+                        )
                     continue
 
                 if srid is not None:
@@ -690,20 +703,21 @@ def validate_column_rules(
             if invalid_rows:
                 result.add_issue(
                     "ERROR",
-                    "geom.invalid_ewkt",
-                    f"Column '{actual_col}' contains invalid EWKT values.",
+                    "geom.invalid",
+                    f"Column '{actual_col}' contains invalid geometries.",
                     column=actual_col,
                     rows=invalid_rows[:50],
+                    details={"examples": invalid_details[:10]},
                 )
 
             if wrong_srid_rows:
                 result.add_issue(
-                "ERROR",
-                "geom.wrong_srid",
-                f"Column '{actual_col}' must use one of SRIDs {allowed_srids} for table '{parsed.get('table_token')}'.",
-                column=actual_col,
-                rows=wrong_srid_rows[:50],
-            )
+                    "ERROR",
+                    "geom.wrong_srid",
+                    f"Column '{actual_col}' must use one of SRIDs {allowed_srids} for table '{parsed.get('table_token')}'.",
+                    column=actual_col,
+                    rows=wrong_srid_rows[:50],
+                )
 
             if implausible_rows:
                 result.add_issue(
