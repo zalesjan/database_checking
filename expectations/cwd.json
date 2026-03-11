@@ -12,8 +12,8 @@
     "inventory_type": {"aliases": ["inventory_type"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true, "allowed_values": ["SPI", "LPI"]},
     "plot_id": {"aliases": ["plot_id"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
     "inventory_year": {"aliases": ["inventory_year"], "dtype": "int", "mandatory_upload": true, "mandatory_update": false, "not_null": true, "min": 1900, "max": "current_year", "unit": "year"},
-    "full_scientific": {"aliases": ["full_scientific"], "dtype": "string", "mandatory_upload": false, "mandatory_update": false, "not_null": false},
-    "decay": {"aliases": ["decay"], "dtype": "float", "mandatory_upload": false, "mandatory_update": false, "not_null": false, "min": 0, "max": 5},
+    "full_scientific": {"aliases": ["full_scientific"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
+    "decay": {"aliases": ["decay"], "dtype": "float", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
     "volume": {"aliases": ["volume"], "dtype": "float", "mandatory_upload": true, "mandatory_update": false, "not_null": true, "min": 0, "unit": "m3"}
   }
 }
