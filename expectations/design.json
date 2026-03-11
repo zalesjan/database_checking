@@ -160,7 +160,7 @@
     "stem_coord_ref_point": {
       "aliases": ["stem_coord_ref_point"],
       "dtype": "string",
-      "mandatory_upload": false,
+      "mandatory_upload": true,
       "mandatory_update": false,
       "not_null": false,
       "allowed_values": ["BHC", "SBC"]
@@ -178,6 +178,13 @@
       "mandatory_upload": true,
       "mandatory_update": false,
       "not_null": true
+    },
+    "other": {
+      "aliases": ["other"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
     }
   }
 }

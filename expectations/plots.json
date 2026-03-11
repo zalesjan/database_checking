@@ -12,13 +12,13 @@
     "inventory_id": {"aliases": ["inventory_id"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
     "inventory_type": {"aliases": ["inventory_type"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true, "allowed_values": ["SPI", "LPI"]},
     "plot_id": {"aliases": ["plot_id"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
-    "circle_no": {"aliases": ["circle_no"], "dtype": "int", "mandatory_upload": false, "mandatory_update": false, "not_null": false},
+    "circle_no": {"aliases": ["circle_no"], "dtype": "int", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
     "circle_radius": {"aliases": ["circle_radius"], "dtype": "float", "mandatory_upload": false, "mandatory_update": false, "not_null": false, "min": 0, "unit": "m"},
     "plot_sampled": {"aliases": ["plot_sampled"], "dtype": "boolean", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
-    "sampled_area": {"aliases": ["sampled_area"], "dtype": "float", "mandatory_upload": false, "mandatory_update": false, "not_null": false, "min": 0, "unit": "m2"},
+    "sampled_area": {"aliases": ["sampled_area"], "dtype": "float", "mandatory_upload": true, "mandatory_update": false, "not_null": false, "min": 0, "unit": "m2"},
     "inventory_year": {"aliases": ["inventory_year"], "dtype": "int", "mandatory_upload": true, "mandatory_update": false, "not_null": true, "min": 1900, "max": "current_year", "unit": "year"},
-    "consistent_id_standing": {"aliases": ["consistent_id_standing"], "dtype": "string", "mandatory_upload": false, "mandatory_update": false, "not_null": false, "allowed_values": ["N", "P", "Y"]},
-    "consistent_id_lying": {"aliases": ["consistent_id_lying"], "dtype": "string", "mandatory_upload": false, "mandatory_update": false, "not_null": false, "allowed_values": ["N", "P", "Y"]},
+    "consistent_id_standing": {"aliases": ["consistent_id_standing"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false, "allowed_values": ["N", "P", "Y"]},
+    "consistent_id_lying": {"aliases": ["consistent_id_lying"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false, "allowed_values": ["N", "P", "Y"]},
     "geom": {"aliases": ["geom"], "dtype": "ewkt", "mandatory_upload": true, "mandatory_update": false, "not_null": true}
   }
 }
