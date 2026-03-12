@@ -50,14 +50,13 @@ The data are based on the current state of scientific knowledge. However, there 
  
 """)
 
-st.markdown('<a href="https://docs.google.com/forms/d/1uVVIM23M4wiwB9gUeDYooiljRZFjuu9pP_BnLVZbGC0/edit" target="_blank">Please fill out this Form to gain access</a>', unsafe_allow_html=True)
+st.markdown('<a href="https://docs.google.com/forms/d/1uVVIM23M4wiwB9gUeDYooiljRZFjuu9pP_BnLVZbGC0" target="_blank">Please fill out this Form to gain access</a>', unsafe_allow_html=True)
 
 # Closing Note
 st.header("Contacts")
 st.write(
     """
-    *If you believe you need insitutional or special access to the database, contact Jan Zálešák (zalesak@vukoz.cz).
-    *For any assistance, contact Jan Zálešák (zalesak@vukoz.cz) for support.* 
+    *For any assistance or if you believe you need insitutional or special access to the database, contact Magda Guńka (magdalena.gunka(at)vuk.gov.cz).*
     *Enjoy using the app!*
     """
 )

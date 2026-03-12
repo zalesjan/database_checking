@@ -145,8 +145,7 @@ st.markdown(
 st.header("Contacts")
 st.write(
 """
-*If you believe you need institutional or special access to the database, contact Magda Guńka (magdalena.gunka(at)vuk.gov.cz).
-*For any assistance, contact Magda Guńka (magdalena.gunka(at)vuk.gov.cz) for support.* 
+*For any assistance or if you believe you need insitutional or special access to the database, contact Magda Guńka (magdalena.gunka(at)vuk.gov.cz).*
 *Enjoy using the app!*
 """
 )
