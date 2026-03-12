@@ -30,6 +30,7 @@
     "decay": {"aliases": ["decay"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
     "geom": {"aliases": ["geom"], "dtype": "ewkt", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
     "hom": {"aliases": ["hom"], "dtype": "float", "mandatory_upload": false, "mandatory_update": false, "not_null": false},
-    "status2": {"aliases": ["status2"], "dtype": "string", "mandatory_upload": false, "mandatory_update": false, "not_null": false}
+    "status2": {"aliases": ["status2"], "dtype": "string", "mandatory_upload": false, "mandatory_update": false, "not_null": false},
+    "diameter_130": {"aliases": ["diameter_130"], "dtype": "float", "mandatory_upload": false, "mandatory_update": false, "not_null": false, "min": 0, "unit": "mm"}
     }
 }

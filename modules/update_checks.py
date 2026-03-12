@@ -412,8 +412,8 @@ def validate_composed_site_id_components(df: pd.DataFrame, result: ValidationRes
             "row.composed_site_id_mismatch",
             "Values derived from composed_site_id do not match one or more present component columns.",
             column="composed_site_id",
-            rows=bad_rows[:50],
-            details={"examples": bad_details[:10]},
+            rows=bad_rows,
+            details={"examples": bad_details},
         )
 
 def validate_inventory_id_components(df: pd.DataFrame, result: ValidationResult) -> None:
@@ -481,8 +481,8 @@ def validate_inventory_id_components(df: pd.DataFrame, result: ValidationResult)
             "row.inventory_id_mismatch",
             "Values derived from inventory_id do not match one or more present component columns.",
             column="inventory_id",
-            rows=bad_rows[:50],
-            details={"examples": bad_details[:10]},
+            rows=bad_rows,
+            details={"examples": bad_details},
         )
 
 
@@ -521,7 +521,7 @@ def validate_upload_update_shape(
                 "update.record_id_null",
                 f"Column '{record_id_col}' must not contain nulls in UPDATE files.",
                 column=record_id_col,
-                rows=[int(i) + 2 for i in null_rows[:50]],
+                rows=[int(i) + 2 for i in null_rows],
             )
 
         other_cols = [c for c in df.columns if c != record_id_col]
@@ -539,7 +539,7 @@ def validate_upload_update_shape(
                 "ERROR",
                 "update.row_without_changes",
                 "Each UPDATE row must contain at least one non-null changed value besides the record_id.",
-                rows=[int(i) + 2 for i in empty_rows[:50]],
+                rows=[int(i) + 2 for i in empty_rows],
             )
 
 
@@ -602,7 +602,7 @@ def validate_column_rules(
                     "null.not_allowed",
                     f"Column '{actual_col}' contains nulls but is marked not_null.",
                     column=actual_col,
-                    rows=[int(i) + 2 for i in null_rows[:50]],
+                    rows=[int(i) + 2 for i in null_rows],
                 )
 
         dtype = rules.get("dtype")
@@ -616,7 +616,7 @@ def validate_column_rules(
                     "type.numeric",
                     f"Column '{actual_col}' contains non-numeric values.",
                     column=actual_col,
-                    rows=[int(i) + 2 for i in bad_rows[:50]],
+                    rows=[int(i) + 2 for i in bad_rows],
                 )
             else:
                 if numeric.notna().any():
@@ -633,7 +633,7 @@ def validate_column_rules(
                             "range.min",
                             f"Column '{actual_col}' has values below {rules['min']}.",
                             column=actual_col,
-                            rows=[int(i) + 2 for i in low_rows[:50]],
+                            rows=[int(i) + 2 for i in low_rows],
                         )
 
                 if "max" in rules:
@@ -647,7 +647,7 @@ def validate_column_rules(
                             "range.max",
                             f"Column '{actual_col}' has values above {max_value}.",
                             column=actual_col,
-                            rows=[int(i) + 2 for i in high_rows[:50]],
+                            rows=[int(i) + 2 for i in high_rows],
                         )
 
         elif dtype == "boolean":
@@ -659,7 +659,7 @@ def validate_column_rules(
                     "type.boolean",
                     f"Column '{actual_col}' contains invalid boolean-like values.",
                     column=actual_col,
-                    rows=[int(i) + 2 for i in bad_rows[:50]],
+                    rows=[int(i) + 2 for i in bad_rows],
                 )
 
         elif dtype == "ewkt":
@@ -706,8 +706,8 @@ def validate_column_rules(
                     "geom.invalid",
                     f"Column '{actual_col}' contains invalid geometries.",
                     column=actual_col,
-                    rows=invalid_rows[:50],
-                    details={"examples": invalid_details[:10]},
+                    rows=invalid_rows,
+                    details={"examples": invalid_details},
                 )
 
             if wrong_srid_rows:
@@ -716,7 +716,7 @@ def validate_column_rules(
                     "geom.wrong_srid",
                     f"Column '{actual_col}' must use one of SRIDs {allowed_srids} for table '{parsed.get('table_token')}'.",
                     column=actual_col,
-                    rows=wrong_srid_rows[:50],
+                    rows=wrong_srid_rows,
                 )
 
             if implausible_rows:
@@ -725,7 +725,7 @@ def validate_column_rules(
                     "geom.implausible",
                     f"Column '{actual_col}' contains geometries that look implausible for the SRID.",
                     column=actual_col,
-                    rows=implausible_rows[:50],
+                    rows=implausible_rows,
                 )
 
             if srids:
@@ -742,9 +742,9 @@ def validate_column_rules(
                     "value.not_allowed",
                     f"Column '{actual_col}' contains disallowed values.",
                     column=actual_col,
-                    rows=[int(i) + 2 for i in bad_rows[:50]],
+                    rows=[int(i) + 2 for i in bad_rows],
                     details={
-                        "bad_values": sorted(series[bad_mask].dropna().astype(str).unique().tolist())[:20],
+                        "bad_values": sorted(series[bad_mask].dropna().astype(str).unique().tolist()),
                         "allowed_values": allowed_values,
                     },
                 )
@@ -851,7 +851,7 @@ def render_result(result: ValidationResult) -> None:
         for idx, issue in enumerate(result.issues, start=1):
             row_txt = ""
             if issue.rows:
-                preview = ", ".join(map(str, issue.rows[:10]))
+                preview = ", ".join(map(str, issue.rows))
                 row_txt = f" Rows: {preview}"
                 if len(issue.rows) > 10:
                     row_txt += " ..."
