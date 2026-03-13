@@ -99,7 +99,7 @@
             "non_null": true
         },
         "diameter_1.3": {
-            "alternatives": ["diameter_1.3", "d_1.3", "diameter_1.3_mm", "diameter_130"]
+            "alternatives": ["diameter_1.3", "d_1.3", "diameter_1.3_mm", "diameter_130", "d_130"]
       }
     },
     "required_non_null_columns": [
