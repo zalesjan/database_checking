@@ -564,14 +564,14 @@ def validate_column_rules(
                 column=canonical_name,
             )
 
-    for col in missing_expected:
-        if not columns_cfg[col].get(f"mandatory_{action}", False):
-            result.add_issue(
-                "INFO",
-                "column.expected_missing",
-                f"Expected column '{col}' is not present.",
-                column=col,
-            )
+    # for col in missing_expected:
+    #     if not columns_cfg[col].get(f"mandatory_{action}", False):
+    #         result.add_issue(
+    #             "INFO",
+    #             "column.expected_missing",
+    #             f"Expected column '{col}' is not present.",
+    #             column=col,
+    #         )
 
     extra_allowed = expectation.get("additional_columns_allowed", True)
 

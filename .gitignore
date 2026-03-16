@@ -1,4 +1,4 @@
 modules/__pycache__/*
 logs/*
 temp_dir/*
-venv
+venv/
