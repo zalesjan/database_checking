@@ -225,7 +225,8 @@ def load_data_with_copy_command(df, schema, table_name, column_mapping, ordered_
         copy_command = determine_copy_command_with_ignore(ordered_core_attributes, extra_columns, table_name, schema, ignored_columns)
     print(f"COPY command: {copy_command}")
     # ✅ Convert problematic columns BEFORE preparing DataFrame
-    numeric_columns = ['year_reserve', 'year_abandonment', "inventory_year", "prp_id", "abundance_value", "epsg_code"]  # Add other columns if needed
+    # "abundance_value", NOT NUMERIC!
+    numeric_columns = ['year_reserve', 'year_abandonment', "inventory_year", "prp_id",  "epsg_code"]  # Add other columns if needed
     
     for col in numeric_columns:
         if col in df.columns:

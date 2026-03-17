@@ -34,8 +34,7 @@
         "alternatives": ["abundance_chart"]
       },
       "abundance_value": {
-        "alternatives": ["abundance_value", "abundance", "Pokryvnost"],
-        "is_numeric": true
+        "alternatives": ["abundance_value", "abundance", "Pokryvnost"]
       },
       "red_list_chart": {
         "alternatives": ["red_list_chart"]
@@ -56,7 +55,7 @@
           "is_numeric": true
       },
       "date_of_collection": {
-          "alternatives": ["date_of_collection", "date", "date_ymd"],
+          "alternatives": ["date_of_collection", "date", "date_ymd", "inventory_date"],
           "is_numeric": true
       },
        "wildcard_sub_id": {
