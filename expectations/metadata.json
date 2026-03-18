@@ -1,0 +1,15 @@
+{
+  "table_token": "metadata",
+  "db_table": "metadata",
+  "update_record_id": "metadata_record_id",
+  "additional_columns_allowed": false,
+  "columns": {
+    "institute": {"aliases": ["institute"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
+    "type": {"aliases": ["type"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
+    "table_name": {"aliases": ["table_name"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
+    "attribute": {"aliases": ["attribute"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
+    "attribute_description": {"aliases": ["attribute_description"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
+    "value_code": {"aliases": ["value_code"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
+    "value_description": {"aliases": ["value_description"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false}
+  }
+}

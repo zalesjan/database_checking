@@ -1,0 +1,190 @@
+{
+  "table_token": "design",
+  "db_table": "site_design",
+  "update_record_id": "site_design_record_id",
+  "additional_columns_allowed": true,
+  "columns": {
+    "institute": {
+      "aliases": ["institute"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "site_id": {
+      "aliases": ["site_id"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "site_name": {
+      "aliases": ["site_name"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "wildcard_sub_id": {
+      "aliases": ["wildcard_sub_id"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "composed_site_id": {
+      "aliases": ["composed_site_id"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "inventory_id": {
+      "aliases": ["inventory_id"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "inventory_year": {
+      "aliases": ["inventory_year"],
+      "dtype": "int",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true,
+      "min": 1900,
+      "max": "current_year",
+      "unit": "year"
+    },
+    "inventory_type": {
+      "aliases": ["inventory_type"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true,
+      "allowed_values": ["SPI", "LPI"]
+    },
+    "plots_list": {
+      "aliases": ["plots_list"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "circle_no": {
+      "aliases": ["circle_no"],
+      "dtype": "int",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "circle_radius": {
+      "aliases": ["circle_radius"],
+      "dtype": "float",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 0,
+      "unit": "m"
+    },
+    "circle_azimuth": {
+      "aliases": ["circle_azimuth"],
+      "dtype": "float",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 0,
+      "max": 360,
+      "unit": "degrees"
+    },
+    "circle_distance": {
+      "aliases": ["circle_distance"],
+      "dtype": "float",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 0,
+      "unit": "m"
+    },
+    "pom_mark": {
+      "aliases": ["pom_mark"],
+      "dtype": "boolean",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "standing_alive_threshold": {
+      "aliases": ["standing_alive_threshold"],
+      "dtype": "float",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 0,
+      "unit": "cm"
+    },
+    "standing_dead_threshold": {
+      "aliases": ["standing_dead_threshold"],
+      "dtype": "float",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 0,
+      "unit": "cm"
+    },
+    "lying_alive_threshold": {
+      "aliases": ["lying_alive_threshold"],
+      "dtype": "float",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 0,
+      "unit": "cm"
+    },
+    "lying_dead_threshold": {
+      "aliases": ["lying_dead_threshold"],
+      "dtype": "float",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 0,
+      "unit": "cm"
+    },
+    "species_pool": {
+      "aliases": ["species_pool"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "allowed_values": ["ATS", "AWS"]
+    },
+    "stem_coord_ref_point": {
+      "aliases": ["stem_coord_ref_point"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "allowed_values": ["BHC", "SBC"]
+    },
+    "lis_cwd": {
+      "aliases": ["lis_cwd"],
+      "dtype": "boolean",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "geom": {
+      "aliases": ["geom"],
+      "dtype": "ewkt",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "other": {
+      "aliases": ["other"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    }
+  }
+}
