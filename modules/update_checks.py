@@ -14,7 +14,8 @@ import pandas as pd
 import streamlit as st
 
 
-EXPECTATIONS_DIR = Path("expectations")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+EXPECTATIONS_DIR = PROJECT_ROOT / "expectations"
 
 # filename token -> expectation file + db naming
 TABLE_CONFIG = {
@@ -650,6 +651,18 @@ def validate_column_rules(
                             rows=[int(i) + 2 for i in high_rows],
                         )
 
+        elif dtype == "date":
+            parsed_dates = pd.to_datetime(series, errors="coerce", format="mixed")
+            bad_rows = df.index[series.notna() & parsed_dates.isna()].tolist()
+            if bad_rows:
+                result.add_issue(
+                    "ERROR",
+                    "type.date",
+                    f"Column '{actual_col}' contains invalid date values.",
+                    column=actual_col,
+                    rows=[int(i) + 2 for i in bad_rows],
+                )
+
         elif dtype == "boolean":
             bad_mask = series.notna() & ~series.astype(str).str.lower().isin(BOOLEAN_VALUES)
             bad_rows = df.index[bad_mask].tolist()
@@ -774,7 +787,7 @@ def validate_uploaded_file(uploaded_file) -> ValidationResult:
         result.add_issue(
             "ERROR",
             "filename.invalid",
-            "Filename does not match DATATYPE_INSTITUTE_TABLE(_other).csv using table token design/plots/trees/cwd/metadata.",
+            "Filename does not match DATATYPE_INSTITUTE_TABLE(_other).txt using table token design/plots/trees/cwd/metadata.",
         )
         return result
 
