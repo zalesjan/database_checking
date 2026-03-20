@@ -4,12 +4,81 @@
   "update_record_id": "metadata_record_id",
   "additional_columns_allowed": false,
   "columns": {
-    "institute": {"aliases": ["institute"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
-    "type": {"aliases": ["type"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
-    "table_name": {"aliases": ["table_name"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": true},
-    "attribute": {"aliases": ["attribute"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
-    "attribute_description": {"aliases": ["attribute_description"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
-    "value_code": {"aliases": ["value_code"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false},
-    "value_description": {"aliases": ["value_description"], "dtype": "string", "mandatory_upload": true, "mandatory_update": false, "not_null": false}
+    "institute": {
+      "aliases": [
+        "institute"
+      ],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "type": {
+      "aliases": [
+        "type"
+      ],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "table_name": {
+      "aliases": [
+        "table_name"
+      ],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "attribute": {
+      "aliases": [
+        "attribute"
+      ],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "attribute_description": {
+      "aliases": [
+        "attribute_description"
+      ],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "value_code": {
+      "aliases": [
+        "value_code"
+      ],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "value_description": {
+      "aliases": [
+        "value_description"
+      ],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    }
+  },
+  "upload": {
+    "db_columns": [
+      "institute",
+      "type",
+      "table_name",
+      "attribute",
+      "attribute_description",
+      "value_code",
+      "value_description"
+    ],
+    "stage_only_columns": [],
+    "never_upload_columns": []
   }
 }
