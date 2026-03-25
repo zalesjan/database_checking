@@ -7,10 +7,16 @@ import streamlit as st
 EXPECTATIONS_DIR = Path(__file__).resolve().parent / "expectations"
 
 
+
+
 def load_expectations(expectations_dir: Path) -> dict:
     schemas = {}
 
-    for json_path in sorted(expectations_dir.glob("*.json")):
+    allowed_files = ["design.json", "plots.json", "trees.json", "cwd.json", "metadata.json"]
+
+    # for json_path in sorted(expectations_dir.glob("*.json")):
+    for file_name in allowed_files:
+        json_path = expectations_dir / file_name
         with open(json_path, "r", encoding="utf-8") as f:
             schema = json.load(f)
 
@@ -41,6 +47,22 @@ def get_update_required_columns(schema: dict) -> list[str]:
     cols.extend(extra_required)
     return cols
 
+
+def get_geom_rules(schema: dict) -> dict:
+    geom_rules = {}
+    for col_name, col_def in schema["columns"].items():
+        if col_def.get("dtype") == "ewkt":
+            geom_rules[col_name] = col_def.get("allowed_srid")
+    return geom_rules
+
+
+def format_srid_help(allowed_srids: list[int] | None) -> str:
+    if not allowed_srids:
+        return "No SRID restriction defined."
+    labels = [str(s) for s in allowed_srids]
+    if 0 in allowed_srids:
+        labels = [("0 (local geometry)" if s == "0" else s) for s in labels]
+    return ", ".join(labels)
 
 EXPECTATIONS = load_expectations(EXPECTATIONS_DIR)
 
@@ -119,6 +141,14 @@ for table_token, schema in EXPECTATIONS.items():
 
         st.markdown("**UPDATE: required columns**")
         st.code("\n".join(update_cols), language=None)
+
+        geom_rules = get_geom_rules(schema)
+        if geom_rules:
+            st.markdown("**Geometry rules**")
+            for geom_col, allowed_srids in geom_rules.items():
+                st.write(
+                    f"- {geom_col}: allowed SRIDs = {format_srid_help(allowed_srids)}"
+                )
 
         st.caption(
             "For UPDATE files, include the record_id and only the columns you want to change."
