@@ -167,7 +167,8 @@
       "dtype": "ewkt",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": true
+      "not_null": true,
+      "allowed_srid": [3035, 0]
     }
   },
   "upload": {

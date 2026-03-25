@@ -206,14 +206,41 @@ def prepare_dataframe_for_db(
 
     prepared_df = canonical_df[incoming_stage_columns].copy()
 
-    # additional uploaded columns still go to extended_attributes
-    expectation_columns = set(expectation["columns"].keys())
-    reserved_columns = set(db_columns) | set(stage_only_columns) | {record_id_col}
+    # normalise integer columns so values like 820.0 become 820 before COPY
+    int_columns = [
+        col
+        for col, rules in expectation["columns"].items()
+        if rules.get("dtype") == "int" and col in prepared_df.columns
+    ]
+
+    for col in int_columns:
+        numeric = pd.to_numeric(prepared_df[col], errors="coerce")
+
+        # keep real nulls as nulls
+        invalid_numeric = prepared_df[col].notna() & numeric.isna()
+        if invalid_numeric.any():
+            bad_rows = (prepared_df.index[invalid_numeric] + 2).tolist()
+            raise ValueError(
+                f"Column '{col}' contains non-numeric values in rows {bad_rows[:10]}"
+            )
+
+        # do not silently round true decimals like 820.5
+        non_integer = numeric.notna() & (numeric % 1 != 0)
+        if non_integer.any():
+            bad_rows = (prepared_df.index[non_integer] + 2).tolist()
+            raise ValueError(
+                f"Column '{col}' contains decimal values but must be integer in rows {bad_rows[:10]}"
+            )
+
+        prepared_df[col] = numeric.astype("Int64")
+
+    # anything present in the file but not actually staged should go to extended_attributes
     extra_columns = [
         col for col in canonical_df.columns
-        if col not in expectation_columns
+        if col not in incoming_stage_columns
         and col not in never_upload_columns
-        and col not in reserved_columns
+        and col != record_id_col
+        and col != "geom_local"
     ]
 
     if "extended_attributes" in db_columns and extra_columns and db_table != "metadata":
