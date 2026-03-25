@@ -256,7 +256,8 @@
       "dtype": "ewkt",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": false,
+      "allowed_srid": [3035, 0]
     },
     "hom": {
       "aliases": [

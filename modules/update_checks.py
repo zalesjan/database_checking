@@ -23,31 +23,26 @@ TABLE_CONFIG = {
         "expectation_file": "design.json",
         "db_table": "site_design",
         "update_record_id": "site_design_record_id",
-        "allowed_srids": [4326],
     },
     "plots": {
         "expectation_file": "plots.json",
         "db_table": "plots",
         "update_record_id": "plot_record_id",
-        "allowed_srids": [3035, 0],
     },
     "trees": {
         "expectation_file": "trees.json",
         "db_table": "trees",
         "update_record_id": "tree_record_id",
-        "allowed_srids": [3035, 0],
     },
     "cwd": {
         "expectation_file": "cwd.json",
         "db_table": "cwd",
         "update_record_id": "cwd_record_id",
-        "allowed_srids": None,
     },
     "metadata": {
         "expectation_file": "metadata.json",
         "db_table": "metadata",
         "update_record_id": "metadata_record_id",
-        "allowed_srids": None,
     },
 }
 
@@ -152,7 +147,6 @@ def parse_filename(file_name: str) -> Optional[Dict[str, Any]]:
         "table_token": table_token,
         "db_table": TABLE_CONFIG[table_token]["db_table"],
         "update_record_id": TABLE_CONFIG[table_token]["update_record_id"],
-        "allowed_srids": TABLE_CONFIG[table_token]["allowed_srids"],
         "other": match.group("other"),
     }
 
@@ -682,7 +676,7 @@ def validate_column_rules(
             wrong_srid_rows = []
             srids = []
 
-            allowed_srids = parsed.get("allowed_srids")
+            allowed_srids = rules.get("allowed_srid")
 
             for idx, value in series.items():
                 ok, srid, wkt, geom_error = parse_ewkt(value)
