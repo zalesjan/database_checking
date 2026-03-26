@@ -109,6 +109,7 @@ st.write(
 - Fill in all columns, even those that are empty. Empty columns should contain \\N (exactly like this).
 - Pay attention not to leave additional tabs in the file, whether in the column names or the data itself. Otherwise it will break the upload.
 - Difference between new data (whether partial, e.g. new trees in plots, or complete) and updates. In case you have both new data and updates, then separate these into different files eg. UPLOAD_VUK_TREES.csv and UPDATE_VUK_PLOTS.csv.
+- If an update includes changes in more than one column, but not all of those columns were changed in every row, the preferred approach is to split the submission into separate groups or files so that each file contains rows with the same set of changed columns. Alternatively, everything can be submitted in a single file, but in that case any column that was not changed in a given row should still contain its original value rather than \N.
 - Combining new data and updates is possible and will be approached on a case-by-case basis to facilitate efficiency.
 - Geometry should be in the `EWKT format` -> SRID=epsg_code;WKT e.g. SRID=4326;POINT(14.0 50.0). You can check the allowed srid values in the 'Mandatory columns by table' section.
 
