@@ -856,18 +856,23 @@ def render_result(result: ValidationResult) -> None:
         st.write("No issues found.")
     else:
         for idx, issue in enumerate(result.issues, start=1):
-            row_txt = ""
-            if issue.rows:
-                preview = ", ".join(map(str, issue.rows))
-                row_txt = f" Rows: {preview}"
-                if len(issue.rows) > 10:
-                    row_txt += " ..."
+            # row_txt = ""
+            # if issue.rows:
+            #     preview = ", ".join(map(str, issue.rows))
+            #     row_txt = f" Rows: {preview}"
+            #     if len(issue.rows) > 10:
+            #         row_txt += " ..."
 
+            row_txt = f" Affected rows: {len(issue.rows)}." if issue.rows else ""
             col_txt = f" Column: `{issue.column}`." if issue.column else ""
             st.markdown(
                 f"**{idx}. [{issue.level}] {issue.code}**  \n"
                 f"{issue.message}{col_txt}{row_txt}"
             )
+            
+            if issue.rows:
+                with st.expander(f"Show affected rows ({len(issue.rows)})", expanded=False):
+                    st.json(issue.rows, expanded=False)
 
             if issue.details:
                 with st.expander("Details", expanded=False):
