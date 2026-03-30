@@ -6,7 +6,7 @@ from modules.update_checks import (
     validate_uploaded_file,
 )
 
-st.title("File Upload and Validation")
+st.title("File Validation")
 st.markdown(
     """
 Upload one or more TXT files for validation.
