@@ -20,11 +20,12 @@ from modules.update_checks import (
 )
 
 TABLE_ORDER = {
-    "design": 1,
-    "plots": 2,
-    "trees": 3,
-    "cwd": 4,
-    "metadata": 5,
+    "sites": 1,
+    "design": 2,
+    "plots": 3,
+    "trees": 4,
+    "cwd": 5,
+    "metadata": 6,
 }
 
 GEOM_TABLES = {"plots", "trees"}
@@ -136,6 +137,11 @@ def _geom_local_from_ewkt(value: Any) -> bool | None:
         return None
     return srid == 0
 
+def _build_point(longitude, latitude, srid=0):
+    if pd.isna(longitude) or pd.isna(latitude):
+        return None
+    return f"SRID={srid};POINT({longitude} {latitude})"
+
 
 def _normalise_plots_list(value: Any) -> Any:
     if pd.isna(value):
@@ -188,6 +194,16 @@ def prepare_dataframe_for_db(
     if db_table == "site_design" and "plots_list" in canonical_df.columns:
         canonical_df["plots_list"] = canonical_df["plots_list"].map(_normalise_plots_list)
 
+    if db_table == "sites":
+        if "longitude" in canonical_df.columns and "latitude" in canonical_df.columns:
+            lon = pd.to_numeric(canonical_df["longitude"], errors="coerce")
+            lat = pd.to_numeric(canonical_df["latitude"], errors="coerce")
+
+            canonical_df["geom"] = [
+                _build_point(x, y, 4326)
+                for x, y in zip(lon, lat)
+                ]
+
     # columns that may physically exist in the temp stage table
     stage_columns = [
         col for col in (db_columns + stage_only_columns)
@@ -224,7 +240,7 @@ def prepare_dataframe_for_db(
                 f"Column '{col}' contains non-numeric values in rows {bad_rows[:10]}"
             )
 
-        # do not silently round true decimals like 820.5
+        # do not silently round true decimals
         non_integer = numeric.notna() & (numeric % 1 != 0)
         if non_integer.any():
             bad_rows = (prepared_df.index[non_integer] + 2).tolist()

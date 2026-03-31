@@ -19,6 +19,12 @@ EXPECTATIONS_DIR = PROJECT_ROOT / "expectations"
 
 # filename token -> expectation file + db naming
 TABLE_CONFIG = {
+    "sites": {
+        "expectation_file": "sites.json",
+        "db_table": "sites",
+        "update_record_id": "site_record_id",
+        "allowed_srids": None,
+    },
     "design": {
         "expectation_file": "design.json",
         "db_table": "site_design",
@@ -48,7 +54,7 @@ TABLE_CONFIG = {
 
 RECORD_ID_PATTERN = re.compile(r".*_record_id$", re.IGNORECASE)
 FILENAME_RE = re.compile(
-    r"^(upload|update|query)_(?P<institute>.+?)_(design|plots|trees|cwd|metadata)(?:_(?P<other>.+))?\.txt$",
+    r"^(upload|update|query)_(?P<institute>.+?)_(sites|design|plots|trees|cwd|metadata)(?:_(?P<other>.+))?\.txt$",
     re.IGNORECASE,
 )
 
@@ -226,6 +232,31 @@ def normalise_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     for col in out.columns:
         out[col] = out[col].map(lambda x: x.strip() if isinstance(x, str) else x)
     return out
+
+def filter_approved_rows(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    out = df.copy()
+
+    if "edit-status" not in out.columns:
+        return out, {
+            "status_column_present": False,
+            "rows_dropped_by_edit_status": 0,
+        }
+
+    keep_mask = (
+        out["edit-status"]
+        .astype("string")
+        .str.strip()
+        .str.lower()
+        .eq("approved")
+    )
+
+    dropped = int((~keep_mask).sum())
+    out = out.loc[keep_mask].copy()
+
+    return out, {
+        "status_column_present": True,
+        "rows_dropped_by_edit_status": dropped,
+    }
 
 def resolve_present_columns(
     df: pd.DataFrame, expectation: Dict[str, Any]
@@ -813,6 +844,7 @@ def validate_uploaded_file(uploaded_file) -> ValidationResult:
         return result
 
     df = normalise_dataframe(df)
+    df, filter_meta = filter_approved_rows(df)
 
     expectation = load_expectation(parsed["table_token"])
 
@@ -820,6 +852,14 @@ def validate_uploaded_file(uploaded_file) -> ValidationResult:
     validate_column_rules(df, result, expectation, parsed)
 
     result.stats["n_rows"] = int(len(df))
+    result.stats["rows_dropped_by_edit_status"] = filter_meta["rows_dropped_by_edit_status"]
+
+    if filter_meta["status_column_present"]:
+        result.manual_review["edit_status_filter"] = {
+            "column_used": "edit-status",
+            "kept_only": "approved",
+            "rows_dropped": filter_meta["rows_dropped_by_edit_status"],
+        }
     result.stats["n_columns"] = int(len(df.columns))
     result.stats["columns"] = df.columns.tolist()
 
@@ -833,6 +873,10 @@ def render_result(result: ValidationResult) -> None:
         st.error(f"Tests for {header} not passed.")
 
     parsed = result.parsed_name
+
+    dropped = result.stats.get("rows_dropped_by_edit_status", 0)
+    if dropped:
+        st.info(f"{dropped} rows were excluded because edit-status was not 'approved'.")
 
     st.markdown("### File summary")
     st.markdown(
