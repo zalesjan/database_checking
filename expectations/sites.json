@@ -1,0 +1,191 @@
+{
+  "table_token": "sites",
+  "db_table": "sites",
+  "update_record_id": "site_record_id",
+  "additional_columns_allowed": true,
+  "columns": {
+    "composed_site_id": {
+      "aliases": ["composite_site_id"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "institute": {
+      "aliases": ["institute"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "site_id": {
+      "aliases": ["site_id", "res_id_inst"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "site_name": {
+      "aliases": ["site_name", "reserve_name"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true
+    },
+    "wildcard_sub_id": {
+      "aliases": ["wildcard_sub_id"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "his": {
+      "aliases": ["his", "his_selected"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "his_lidar": {
+      "aliases": ["his_lidar"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "soil_water": {
+      "aliases": ["soil_water", "water", "confirmed_his_soil-water"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "soil_nutrient": {
+      "aliases": ["soil_nutrient", "confirmed_his_soil-nutrient"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "his_fortype": {
+      "aliases": ["his_fortype", "forest_type", "his_forest_type", "confirmed_his_fortype"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "eea_fortype": {
+      "aliases": ["eea_forest_type", "eea", "eea_fortype"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "year_reserve": {
+      "aliases": ["year_reserve", "reserve_year"],
+      "dtype": "int",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 1800,
+      "max": "current_year",
+      "unit": "year"
+    },
+    "year_abandonment": {
+      "aliases": ["year_abandonment", "abandonment"],
+      "dtype": "int",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 1800,
+      "max": "current_year",
+      "unit": "year"
+    },
+    "any_biodiv": {
+      "aliases": ["any_biodiv"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "contact": {
+      "aliases": ["contact"],
+      "dtype": "string",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": false
+    },
+    "ecoregion": {
+        "aliases": ["ecoregion"],
+        "dtype": "string",
+        "mandatory_upload": true,
+        "mandatory_update": false,
+        "not_null": true
+    },
+    "longitude": {
+    "aliases": ["longitude", "x"],
+    "dtype": "float",
+    "mandatory_upload": true,
+    "mandatory_update": false,
+    "not_null": true,
+    "min": -180,
+    "max": 180,
+    "unit": "degrees"
+    },
+    "latitude": {
+      "aliases": ["latitude", "y"],
+      "dtype": "float",
+      "mandatory_upload": true,
+      "mandatory_update": false,
+      "not_null": true,
+      "min": -90,
+      "max": 90,
+      "unit": "degrees"
+    }
+  },
+  "upload": {
+    "db_columns": [
+      "composed_site_id",
+      "institute",
+      "site_id",
+      "site_name",
+      "wildcard_sub_id",
+      "his",
+      "his_lidar",
+      "soil_water",
+      "soil_nutrient",
+      "his_fortype",
+      "eea_fortype",
+      "year_reserve",
+      "year_abandonment",
+      "biodiversity",
+      "contact",
+      "ecoregion",
+      "geom"
+    ],
+    "stage_only_columns": [],
+    "never_upload_columns": ["edit-status", 
+      "wildcard_db_record_id",
+      "dendro_data_confirmed",
+      "confirmed_his_soil",
+      "derived_tsa",
+      "biodiv-acquisition-status",
+      "his_must_reason",
+      "his_soil_pit_permission",
+      "his_soil_core_permission",
+      "his_accessability",	
+      "lidar_acquisition_status",	
+      "lidar_platform",	
+      "his_flying_permission",	
+      "his_flying_permission_comment",	
+      "his_flying_other_constrains_comment",
+      "his_other_projects",
+      "table.his_selection",
+      "table.euforiatable",
+      "table.wildcardtable",
+      "n_composed_site_id",
+      "edit-comment",
+      "date of last change"
+    ]
+  }
+}
