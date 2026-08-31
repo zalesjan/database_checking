@@ -237,7 +237,7 @@ def prepare_dataframe_for_db(
         if invalid_numeric.any():
             bad_rows = (prepared_df.index[invalid_numeric] + 2).tolist()
             raise ValueError(
-                f"Column '{col}' contains non-numeric values in rows {bad_rows[:10]}"
+                f"File {parsed['file_name'] if 'file_name' in parsed else 'Filename missing'};\nColumn '{col}' contains non-numeric values in rows {bad_rows[:10]}"
             )
 
         # do not silently round true decimals
@@ -245,7 +245,7 @@ def prepare_dataframe_for_db(
         if non_integer.any():
             bad_rows = (prepared_df.index[non_integer] + 2).tolist()
             raise ValueError(
-                f"Column '{col}' contains decimal values but must be integer in rows {bad_rows[:10]}"
+                f"File {parsed['file_name'] if 'file_name' in parsed else 'Filename missing'};\nColumn '{col}' contains decimal values but must be integer in rows {bad_rows[:10]}"
             )
 
         prepared_df[col] = numeric.astype("Int64")
@@ -405,6 +405,7 @@ def _populate_foreign_keys(cur, stage_table: str, db_table: str) -> None:
         )
         return
 
+    
     if db_table == "cwd":
         cur.execute(
             sql.SQL(
@@ -417,6 +418,7 @@ def _populate_foreign_keys(cur, stage_table: str, db_table: str) -> None:
                   AND s.inventory_id = src.inventory_id
                   AND s.inventory_type = src.inventory_type
                   AND s.plot_id IS NOT DISTINCT FROM src.plot_id
+                  AND ((s.inventory_type = 'LPI' AND src.circle_no IS NULL) OR (s.inventory_type = 'SPI' AND src.circle_no = 1))
                 """
             ).format(stage=sql.Identifier(stage_table))
         )
