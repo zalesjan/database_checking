@@ -310,6 +310,15 @@ def truncate_all_tables(role):
                 do_query(restart_numbering, role, (table_to_delete,))
         truncate_trees = f"""truncate trees"""
         do_query(truncate_trees, role)
+        stage_tables_to_delete = f"""
+SELECT 'DROP TABLE ' || tablename || ';' FROM pg_tables
+WHERE tablename LIKE 'stage_%' AND schemaname = 'public'
+"""
+        _, delete_stage_tables = do_query(stage_tables_to_delete, role)
+        drop_statements = delete_stage_tables.iloc[:, 0].tolist()
+        for delete_table in drop_statements:
+            do_query(delete_table, role)
+            print(delete_table)
         restart_numbering_trees = f"""ALTER SEQUENCE trees_record_id_seq RESTART WITH 1;"""
         do_query(restart_numbering_trees, role)
 
