@@ -194,7 +194,8 @@
       "institute", 
       "site_id", 
       "site_name", 
-      "wildcard_sub_id"
+      "wildcard_sub_id",
+      "epsg_code"
     ]
   }
 }

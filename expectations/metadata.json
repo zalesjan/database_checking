@@ -20,7 +20,11 @@
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": true
+      "not_null": true,
+      "allowed_values": [
+        "basic",
+        "extended"
+      ]
     },
     "table_name": {
       "aliases": [
@@ -29,7 +33,17 @@
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": true
+      "not_null": true,
+      "allowed_values": [
+        "cwd",
+        "lying",
+        "standing",
+        "standing, lying",
+        "design",
+        "plots",
+        "sites",
+        "metadata"
+      ]
     },
     "attribute": {
       "aliases": [

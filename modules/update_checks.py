@@ -46,9 +46,9 @@ TABLE_CONFIG = {
     },
 }
 
-RECORD_ID_PATTERN = re.compile(r".*_record_id$", re.IGNORECASE)
+RECORD_ID_PATTERN = re.compile(r"^(site|site_design|plot|tree|cwd|metadata)_record_id$", re.IGNORECASE)
 FILENAME_RE = re.compile(
-    r"^(upload|update|query)_(?P<institute>.+?)_(design|plots|trees|cwd|metadata)(?:_(?P<other>.+))?\.txt$",
+    r"^(upload|update|query)_(?P<institute>.+?)_(sites|design|plots|trees|cwd|metadata)(?:_(?P<other>.+))?\.txt$",
     re.IGNORECASE,
 )
 
@@ -130,6 +130,16 @@ def load_expectation(table_token: str) -> Dict[str, Any]:
         raise FileNotFoundError(f"Expectation file not found: {path}")
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
+    
+
+def load_allowed_composed_site_ids() -> set[str]:
+    path = EXPECTATIONS_DIR / "allowed_composed_site_ids.txt"
+    with open(path, "r", encoding="utf-8") as f:
+        return {
+            line.strip()
+            for line in f
+            if line.strip()
+        }
 
 
 def parse_filename(file_name: str) -> Optional[Dict[str, Any]]:
@@ -226,6 +236,31 @@ def normalise_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     for col in out.columns:
         out[col] = out[col].map(lambda x: x.strip() if isinstance(x, str) else x)
     return out
+
+def filter_approved_rows(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
+    out = df.copy()
+
+    if "edit-status" not in out.columns:
+        return out, {
+            "status_column_present": False,
+            "rows_dropped_by_edit_status": 0,
+        }
+
+    keep_mask = (
+        out["edit-status"]
+        .astype("string")
+        .str.strip()
+        .str.lower()
+        .eq("approved")
+    )
+
+    dropped = int((~keep_mask).sum())
+    out = out.loc[keep_mask].copy()
+
+    return out, {
+        "status_column_present": True,
+        "rows_dropped_by_edit_status": dropped,
+    }
 
 def resolve_present_columns(
     df: pd.DataFrame, expectation: Dict[str, Any]
@@ -344,6 +379,34 @@ def plausible_coords(srid: int, x: float, y: float) -> bool:
         return True
     
     return abs(x) < 10_000_000 and abs(y) < 10_000_000
+
+
+def validate_composed_site_id_allowed(
+    df: pd.DataFrame,
+    result: ValidationResult,
+    parsed: Dict[str, Any],
+) -> None:
+    if parsed.get("table_token") == "metadata":
+        return
+    if "composed_site_id" not in df.columns:
+        return
+
+    allowed = load_allowed_composed_site_ids()
+    bad_mask = df["composed_site_id"].notna() & ~df["composed_site_id"].astype(str).isin(allowed)
+    bad_rows = df.index[bad_mask].tolist()
+
+    if bad_rows:
+        result.add_issue(
+            "ERROR",
+            "value.composed_site_id_not_allowed",
+            "Column 'composed_site_id' contains values not present in the allowed list.",
+            column="composed_site_id",
+            rows=[int(i) + 2 for i in bad_rows],
+            details={
+                "bad_values": sorted(df.loc[bad_mask, "composed_site_id"].astype(str).unique().tolist())
+            },
+        )
+
 
 def validate_composed_site_id_components(df: pd.DataFrame, result: ValidationResult) -> None:
     if "composed_site_id" not in df.columns:
@@ -813,13 +876,23 @@ def validate_uploaded_file(uploaded_file) -> ValidationResult:
         return result
 
     df = normalise_dataframe(df)
+    df, filter_meta = filter_approved_rows(df)
 
     expectation = load_expectation(parsed["table_token"])
 
     validate_upload_update_shape(df, result, parsed)
     validate_column_rules(df, result, expectation, parsed)
+    validate_composed_site_id_allowed(df, result, parsed)
 
     result.stats["n_rows"] = int(len(df))
+    result.stats["rows_dropped_by_edit_status"] = filter_meta["rows_dropped_by_edit_status"]
+
+    if filter_meta["status_column_present"]:
+        result.manual_review["edit_status_filter"] = {
+            "column_used": "edit-status",
+            "kept_only": "approved",
+            "rows_dropped": filter_meta["rows_dropped_by_edit_status"],
+        }
     result.stats["n_columns"] = int(len(df.columns))
     result.stats["columns"] = df.columns.tolist()
 
@@ -833,6 +906,10 @@ def render_result(result: ValidationResult) -> None:
         st.error(f"Tests for {header} not passed.")
 
     parsed = result.parsed_name
+
+    dropped = result.stats.get("rows_dropped_by_edit_status", 0)
+    if dropped:
+        st.info(f"{dropped} rows were excluded because edit-status was not 'approved'.")
 
     st.markdown("### File summary")
     st.markdown(

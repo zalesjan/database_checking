@@ -127,6 +127,12 @@
       "inventory_type"
     ],
     "stage_only_columns": [],
-    "never_upload_columns": []
+    "never_upload_columns": [
+      "institute", 
+      "site_id", 
+      "site_name", 
+      "wildcard_sub_id",
+      "epsg_code"
+    ]
   }
 }
