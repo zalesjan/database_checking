@@ -44,7 +44,7 @@
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": true
     },
     "his_lidar": {
       "aliases": ["his_lidar"],
@@ -58,21 +58,21 @@
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": true
     },
     "soil_nutrient": {
       "aliases": ["soil_nutrient", "confirmed_his_soil-nutrient"],
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": true
     },
     "his_fortype": {
       "aliases": ["his_fortype", "forest_type", "his_forest_type", "confirmed_his_fortype"],
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": true
     },
     "eea_fortype": {
       "aliases": ["eea_forest_type", "eea", "eea_fortype"],
@@ -87,7 +87,6 @@
       "mandatory_upload": true,
       "mandatory_update": false,
       "not_null": false,
-      "min": 1800,
       "max": "current_year",
       "unit": "year"
     },
@@ -96,8 +95,7 @@
       "dtype": "int",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": false,
-      "min": 1800,
+      "not_null": true,
       "max": "current_year",
       "unit": "year"
     },
@@ -106,14 +104,14 @@
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": true
     },
     "contact": {
       "aliases": ["contact"],
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": true
     },
     "ecoregion": {
         "aliases": ["ecoregion"],
@@ -137,7 +135,7 @@
       "dtype": "float",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": true,
+      "not_null": true, 
       "min": -90,
       "max": 90,
       "unit": "degrees"
@@ -150,6 +148,7 @@
       "site_id",
       "site_name",
       "wildcard_sub_id",
+      "extended_attributes",
       "his",
       "his_lidar",
       "soil_water",
@@ -158,7 +157,7 @@
       "eea_fortype",
       "year_reserve",
       "year_abandonment",
-      "biodiversity",
+      "any_biodiv",
       "contact",
       "ecoregion",
       "geom"
@@ -185,7 +184,9 @@
       "table.wildcardtable",
       "n_composed_site_id",
       "edit-comment",
-      "date of last change"
+      "date of last change",
+      "longitude",
+      "latitude"
     ]
   }
 }

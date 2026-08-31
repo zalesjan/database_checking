@@ -11,7 +11,7 @@
       "dtype": "string",
       "mandatory_upload": false,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": true
     },
     "site_id": {
       "aliases": [
@@ -20,7 +20,7 @@
       "dtype": "string",
       "mandatory_upload": false,
       "mandatory_update": false,
-      "not_null": false
+      "not_null": true
     },
     "wildcard_sub_id": {
       "aliases": [
@@ -87,13 +87,13 @@
       "dtype": "string",
       "mandatory_upload": true,
       "mandatory_update": false,
-      "not_null": true
+      "not_null": false
     },
     "stem_id": {
       "aliases": [
         "stem_id"
       ],
-      "dtype": "string",
+      "dtype": "int",
       "mandatory_upload": true,
       "mandatory_update": false,
       "not_null": false
@@ -222,7 +222,7 @@
       "aliases": [
         "diameter_1"
       ],
-      "dtype": "float",
+      "dtype": "int",
       "mandatory_upload": true,
       "mandatory_update": false,
       "not_null": false,
@@ -233,7 +233,7 @@
       "aliases": [
         "diameter_2"
       ],
-      "dtype": "float",
+      "dtype": "int",
       "mandatory_upload": true,
       "mandatory_update": false,
       "not_null": false,
@@ -279,9 +279,22 @@
     },
     "diameter_130": {
       "aliases": [
-        "diameter_130"
+        "diameter_130",
+        "d_130"
       ],
-      "dtype": "float",
+      "dtype": "int",
+      "mandatory_upload": false,
+      "mandatory_update": false,
+      "not_null": false,
+      "min": 0,
+      "unit": "mm"
+    },
+    "diameter_middle": {
+      "aliases": [
+        "diameter_middle",
+        "d_half"
+      ],
+      "dtype": "int",
       "mandatory_upload": false,
       "mandatory_update": false,
       "not_null": false,
@@ -315,7 +328,8 @@
       "circle_no",
       "inventory_id",
       "volume",
-      "diameter_130"
+      "diameter_130",
+      "diameter_middle"
     ],
     "stage_only_columns": [
       "inventory_type",
@@ -325,7 +339,8 @@
       "institute", 
       "site_id", 
       "site_name", 
-      "wildcard_sub_id"
+      "wildcard_sub_id",
+      "epsg_code"
     ]
   }
 }
